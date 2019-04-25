@@ -18,7 +18,7 @@ Adds a vim-like text selection mode that does not require the use of the mouse.
 Enter mode: ALT + ESC
 
 ### st-scrollback
-Allows scrolling upwards to view previous output
+Allows scrolling upwards to view previous output. Diff with st.h amended with correct context to apply patch
 
 Scroll one line: ALT + up/k, ALT + down/j  
 Scroll one page: SHIFT + PageUp, SHIFT + PageDown
