@@ -1,0 +1,9 @@
+#!/bin/bash
+
+rm -rf pkg src *.xz *.gz
+makepkg -si --noconfirm
+cd src/st-0.8.2/
+rm -rf *.o* LEGACY FAQ TODO LICENSE config.def.h st
+cd ../../
+rsync  src/st-0.8.2/* ../st-pub/
+rm -rf pkg src *.xz *.gz
