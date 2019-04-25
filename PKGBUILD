@@ -7,7 +7,7 @@ arch=('i686' 'x86_64' 'armv7h')
 license=('MIT')
 depends=('libxft' 'libxext' 'xorg-fonts-misc')
 makedepends=('ncurses')
-url="https://github.com/pwfrank/st"
+url="https://github.com/pwfrank/st-build"
 source=(https://dl.suckless.org/st/$pkgname-$pkgver.tar.gz
 st.desktop
 st-scrollback-0.8.1.diff
@@ -23,7 +23,6 @@ sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
 'SKIP'
 )
 
-
 prepare() {
   cd $srcdir/$pkgname-$pkgver
   sed -i '/tic /d' Makefile
@@ -31,7 +30,7 @@ prepare() {
   patch -i $srcdir/st-scrollback-mouse-0.8.diff
   patch -i $srcdir/st-xresources-20190105-3be4cf1.diff
   cp $srcdir/config.h $srcdir/$pkgname-$pkgver/config.h
-  cp $srcdir/st.desktop $srcdir/$pkgname-$pkgver/st.desktop
+  cp $srcdir/$pkgname.desktop $srcdir/$pkgname-$pkgver/$pkgname.desktop
 }
 
 build() {
@@ -44,7 +43,7 @@ package() {
   make PREFIX=/usr DESTDIR="$pkgdir" TERMINFO="$pkgdir/usr/share/terminfo" install
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 README "$pkgdir/usr/share/doc/$pkgname/README"
-  install -Dm644 st.desktop "$pkgdir/usr/share/applications/st.desktop"
+  install -Dm644 $pkgname.desktop "$pkgdir/usr/share/applications/$pkgname.desktop"
   # remove to avoid conflict with ncurses
-  rm "${pkgdir}/usr/share/terminfo/s/st" "${pkgdir}/usr/share/terminfo/s/st-256color"
+  #rm "${pkgdir}/usr/share/terminfo/s/st" "${pkgdir}/usr/share/terminfo/s/st-256color"
 }
