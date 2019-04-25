@@ -13,10 +13,14 @@ st.desktop
 st-scrollback-0.8.1.diff
 st-scrollback-mouse-0.8.diff
 st-xresources-20190105-3be4cf1.diff
+st-keyboard_select-0.8.1.diff
+st-clipboard-0.8.2.diff
 config.h
 )
 sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
 '1a5dbc0848b4aaec7773f87bd85ef90ed969a9889eccef2feade9a60aaea9362'
+'SKIP'
+'SKIP'
 'SKIP'
 'SKIP'
 'SKIP'
@@ -29,6 +33,8 @@ prepare() {
   patch -i $srcdir/st-scrollback-0.8.1.diff
   patch -i $srcdir/st-scrollback-mouse-0.8.diff
   patch -i $srcdir/st-xresources-20190105-3be4cf1.diff
+  patch -i $srcdir/st-keyboard_select-0.8.1.diff
+  patch -i $srcdir/st-clipboard-0.8.2.diff
   cp $srcdir/config.h $srcdir/$pkgname-$pkgver/config.h
   cp $srcdir/$pkgname.desktop $srcdir/$pkgname-$pkgver/$pkgname.desktop
 }
