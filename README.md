@@ -20,7 +20,7 @@ Enter mode: ALT + ESC
 ### st-scrollback
 Allows scrolling upwards to view previous output
 
-Scroll one line: ALT + up/k, ALT + down/j
+Scroll one line: ALT + up/k, ALT + down/j  
 Scroll one page: SHIFT + PageUp, SHIFT + PageDown
 
 ### st-scrollback-mouse
