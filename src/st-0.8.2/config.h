@@ -206,9 +206,9 @@ MouseKey mkeys[] = {
 	/* button               mask            function        argument */
 	{ Button4,              ShiftMask,      kscrollup,      {.i =  1} },
 	{ Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
-	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
+/*	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
 	{ Button5,              MODKEY,         kscrolldown,    {.i =  1} },
-/*	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
+	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
 	{ Button5,              MODKEY|ShiftMask,         zoom,    {.f =  -1} },*/
 };
 
@@ -220,7 +220,7 @@ static Shortcut shortcuts[] = {
 	{ XK_ANY_MOD,           XK_Print,       printsel,       {.i =  0} },
 	{ TERMMOD,              XK_Prior,       zoom,           {.f = +1} },
 	{ TERMMOD,              XK_Next,        zoom,           {.f = -1} },
-	{ MODKEY,              XK_Home,        zoomreset,      {.f =  0} },
+	{ ControlMask,          XK_Home,        zoomreset,      {.f =  0} },
 	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
 	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
 	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
@@ -228,15 +228,17 @@ static Shortcut shortcuts[] = {
 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
  	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
-	{ ControlMask,     XK_Up,          zoom,           {.f = +2} },
-	{ ControlMask,     XK_Down,        zoom,           {.f = -2} },
-	{ MODKEY,            	XK_k,  		kscrollup,      {.i =  1} },
-	{ MODKEY,            	XK_j,   	kscrolldown,    {.i =  1} },
-	{ MODKEY,            	XK_Up,  	kscrollup,      {.i =  1} },
-	{ MODKEY,            	XK_Down,   	kscrolldown,    {.i =  1} },
+	{ ControlMask,     			XK_Up,          zoom,           {.f = +2} },
+	{ ControlMask,     			XK_Down,        zoom,           {.f = -2} },
+	{ ControlMask,     			XK_k,  		      zoom,           {.f = +2} },
+	{ ControlMask,     			XK_j, 	        zoom,           {.f = -2} },
+	{ MODKEY,            		XK_k,  					kscrollup,      {.i =  1} },
+	{ MODKEY,            		XK_j,   				kscrolldown,    {.i =  1} },
+	{ MODKEY,            		XK_Up,  				kscrollup,      {.i =  1} },
+	{ MODKEY,            		XK_Down,   			kscrolldown,    {.i =  1} },
 	{ MODKEY,               XK_c,           clipcopy,       {.i =  0} },
 	{ MODKEY,               XK_v,           clippaste,      {.i =  0} },
-	{ MODKEY, 						XK_Escape, 				keyboard_select, { 0 } 		},
+	{ MODKEY, 							XK_Escape, 			keyboard_select,{ 0 } 		},
 };
 
 /*
