@@ -4,9 +4,9 @@ A simple, sensible build of the suckless.org Simple Terminal project.
 A PKGBUILD is included for anyone in an Arch-based environment who wants to manage their installation via pacman. Anyone else can build directly from the src directory using make/make clean install
 
 ## General controls
-Resize font: Control + up/k, Control + down/j
-Copy: ALT + c
-Paste: ALT + v
+Resize font: Control + up/k, Control + down/j  
+Copy: ALT + c  
+Paste: ALT + v  
 
 ## Patches applied
 ### st-clipboard
