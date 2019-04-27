@@ -24,7 +24,7 @@ char *stty_args = "stty raw pass8 nl -echo -iexten -cstopb 38400";
 char *vtiden = "\033[?6c";
 
 /* Kerning / character bounding-box multipliers */
-static float cwscale = 0.875;
+static float cwscale = 1.0;
 static float chscale = 1.0;
 
 /*
@@ -133,11 +133,11 @@ static unsigned int defaultrcs = 257;
 static unsigned int cursorshape = 2;
 
 /*
- * Default columns and rows numbers
+ * Default columns and rows numbers 80/24
  */
 
-static unsigned int cols = 80;
-static unsigned int rows = 24;
+static unsigned int cols = 90;
+static unsigned int rows = 26;
 
 /*
  * Default colour and shape of the mouse cursor
@@ -183,9 +183,9 @@ ResourcePref resources[] = {
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
 		{ "tabspaces",    INTEGER, &tabspaces },
-		{ "borderpx",     INTEGER, &borderpx },
+		{ "borderpx",     INTEGER, &borderpx },*/
 		{ "cwscale",      FLOAT,   &cwscale },
-		{ "chscale",      FLOAT,   &chscale },*/
+		{ "chscale",      FLOAT,   &chscale },
 };
 
 /*
