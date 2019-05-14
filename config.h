@@ -82,6 +82,9 @@ char *termname = "st-256color";
  */
 unsigned int tabspaces = 8;
 
+/* bg opacity */
+float alpha = 1.0;
+
 /* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
 	/* 8 normal colors */
@@ -89,21 +92,21 @@ static const char *colorname[] = {
 	"#f22c40",
 	"#5ab738",
 	"#d5911a",
-  "#407ee7",
+	"#407ee7",
 	"#6666ea",
 	"#00ad9c",
 	"#a8a19f",
 
 	/* 8 bright colors */
 
-  "#766e6b",
-  "#f22c40",
-  "#5ab738",
-  "#d5911a",
-  "#407ee7",
-  "#6666ea",
-  "#00ad9c",
-  "#f1efee",
+	"#766e6b",
+	"#f22c40",
+	"#5ab738",
+	"#d5911a",
+	"#407ee7",
+	"#6666ea",
+	"#00ad9c",
+	"#f1efee",
 
 	[255] = 0,
 
@@ -182,10 +185,11 @@ ResourcePref resources[] = {
 		{ "actionfps",    INTEGER, &actionfps },
 		{ "blinktimeout", INTEGER, &blinktimeout },
 		{ "bellvolume",   INTEGER, &bellvolume },
-		{ "tabspaces",    INTEGER, &tabspaces },
-		{ "borderpx",     INTEGER, &borderpx },*/
+		{ "tabspaces",    INTEGER, &tabspaces },*/
+		{ "borderpx",     INTEGER, &borderpx },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
+		{ "opacity",      FLOAT,   &alpha },
 };
 
 /*
