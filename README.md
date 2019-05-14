@@ -5,6 +5,7 @@ A PKGBUILD is included for anyone in an Arch-based environment who wants to mana
 
 ## General controls
 Resize font: Control + up/K, Control + down/J  
+Reset font: Control + home
 Copy: ALT + c  
 Paste: ALT + v  
 

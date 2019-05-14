@@ -15,6 +15,7 @@ st-scrollback-mouse-0.8.diff
 st-xresources-20190105-3be4cf1.diff
 st-keyboard_select-0.8.1.diff
 st-clipboard-0.8.2.diff
+st-tab-resize.diff
 config.h
 )
 sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
@@ -24,6 +25,7 @@ sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
 '166f18e212e95a1cc0b2d7ef0e0d7acdf7ca9b946bd6cb8b7f685014fe187d5c'
 '1db7687426a46c978d8dfabd94dff186fc178e60926feaec7348938801ea49a5'
 '7be1a09831f13361f5659aaad55110bde99b25c8ba826c11d1d7fcec21f32945'
+'814a7926ccbd40da4b3b6bba797aacc7d3d3d078031fcaadd52cd1d533d2e4fd'
 'SKIP'
 )
 
@@ -35,6 +37,7 @@ prepare() {
   patch -i $srcdir/st-xresources-20190105-3be4cf1.diff
   patch -i $srcdir/st-keyboard_select-0.8.1.diff
   patch -i $srcdir/st-clipboard-0.8.2.diff
+  #patch -i $srcdir/st-tab-resize.diff
   cp $srcdir/config.h $srcdir/$pkgname-$pkgver/config.h
   cp $srcdir/$pkgname.desktop $srcdir/$pkgname-$pkgver/$pkgname.desktop
 }
