@@ -5,7 +5,7 @@ A PKGBUILD is included for anyone in an Arch-based environment who wants to mana
 
 ## General controls
 Resize font: `Control + up/K`, `Control-down/J`  
-Reset font: `Control-home`
+Reset font: `Control-home`  
 Copy: `alt-c`  
 Paste: `alt-v`  
 
@@ -22,7 +22,7 @@ Enter mode: `alt-esc`
 Allows scrolling upwards to view previous output. Diff with st.h amended with correct context to apply patch
 
 Scroll one line: `alt-up/k`, `alt-down/j`  
-Scroll one page: `shift-PageUp`, `shift-PageDown`
+Scroll one page: `shift-PageUp`, `shift-PageDown`  
 
 ### st-scrollback-mouse
 Allows scrolling upwards using shift + mousewheel

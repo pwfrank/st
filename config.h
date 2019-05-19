@@ -82,6 +82,17 @@ char *termname = "st-256color";
  */
 unsigned int tabspaces = 8;
 
+/* externalpipe */
+static char *openurlcmd[] = { "/bin/sh", "-c",
+    "sed 's/.*│//g' | tr -d '\n' | grep -aEo '((http|https)://|www\\.)[a-zA-Z0-9.]*[:]?[a-zA-Z0-9./&%?=_-]*' | uniq | sed 's/^www./http:\\/\\/www\\./g' | dmenu -p 'Follow which url?' -l 10 | xargs -r xdg-open",
+    "externalpipe", NULL };
+
+static char *copyurlcmd[] = { "/bin/sh", "-c",
+    "sed 's/.*│//g' | tr -d '\n' | grep -aEo '((http|https)://|www\\.)[a-zA-Z0-9.]*[:]?[a-zA-Z0-9./&%?=_-]*' | uniq | sed 's/^www./http:\\/\\/www\\./g' | dmenu -p 'Copy which url?' -l 10 | tr -d '\n' | xclip -selection clipboard",
+    "externalpipe", NULL };
+
+static char *copyoutput[] = { "/bin/sh", "-c", "st-copyout", "externalpipe", NULL };
+
 /* bg opacity */
 float alpha = 1.0;
 
@@ -210,9 +221,9 @@ MouseKey mkeys[] = {
 	/* button               mask            function        argument */
 	{ Button4,              ShiftMask,      kscrollup,      {.i =  1} },
 	{ Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
-/*	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
+	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
 	{ Button5,              MODKEY,         kscrolldown,    {.i =  1} },
-	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
+/*	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
 	{ Button5,              MODKEY|ShiftMask,         zoom,    {.f =  -1} },*/
 };
 
@@ -232,17 +243,20 @@ static Shortcut shortcuts[] = {
 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
 	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
  	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
-	{ ControlMask,     			XK_Up,          zoom,           {.f = +2} },
-	{ ControlMask,     			XK_Down,        zoom,           {.f = -2} },
-	{ TERMMOD,							XK_K,  		      zoom,           {.f = +2} },
-	{ TERMMOD,							XK_J, 	        zoom,           {.f = -2} },
-	{ MODKEY,            		XK_k,  					kscrollup,      {.i =  1} },
-	{ MODKEY,            		XK_j,   				kscrolldown,    {.i =  1} },
-	{ MODKEY,            		XK_Up,  				kscrollup,      {.i =  1} },
-	{ MODKEY,            		XK_Down,   			kscrolldown,    {.i =  1} },
+	{ ControlMask, 			XK_Up,          zoom,           {.f = +2} },
+	{ ControlMask, 			XK_Down,        zoom,           {.f = -2} },
+	{ TERMMOD,				XK_K,  		    zoom,           {.f = +2} },
+	{ TERMMOD,				XK_J, 	        zoom,           {.f = -2} },
+	{ MODKEY,          		XK_k,  			kscrollup,      {.i =  1} },
+	{ MODKEY,          		XK_j,   		kscrolldown,    {.i =  1} },
+	{ MODKEY,           	XK_Up,  		kscrollup,      {.i =  1} },
+	{ MODKEY,          		XK_Down,   		kscrolldown,    {.i =  1} },
 	{ MODKEY,               XK_c,           clipcopy,       {.i =  0} },
 	{ MODKEY,               XK_v,           clippaste,      {.i =  0} },
-	{ MODKEY, 							XK_Escape, 			keyboard_select,{ 0 } 		},
+	{ MODKEY, 				XK_Escape, 		keyboard_select,{ 0 } },
+	{ MODKEY,               XK_l,           externalpipe,   {.v = openurlcmd } },
+	{ MODKEY,               XK_y,           externalpipe,   {.v = copyurlcmd } },
+	{ MODKEY,               XK_o,           externalpipe,   {.v = copyoutput } },
 };
 
 /*
