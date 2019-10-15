@@ -1,7 +1,7 @@
 # Maintainer: pwfrank
 pkgname=st
 pkgver=0.8.2
-pkgrel=2
+pkgrel=3
 pkgdesc='A simple virtual terminal emulator for X.'
 arch=('i686' 'x86_64' 'armv7h')
 license=('MIT')
@@ -55,7 +55,7 @@ build() {
 
 package() {
   cd $srcdir/$pkgname-$pkgver
-  make PREFIX=/usr DESTDIR="$pkgdir" TERMINFO="$pkgdir/usr/share/terminfo" install
+  make PREFIX=/usr DESTDIR="$pkgdir" install
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 README "$pkgdir/usr/share/doc/$pkgname/README"
   install -Dm644 $pkgname.desktop "$pkgdir/usr/share/applications/$pkgname.desktop"
