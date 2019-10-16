@@ -8,7 +8,7 @@ license=('MIT')
 depends=('libxft' 'libxext' 'xorg-fonts-misc')
 makedepends=('ncurses')
 url="https://github.com/pwfrank/st-build"
-source=(https://dl.suckless.org/st/$pkgname-$pkgver.tar.gz
+source=($pkgname-$pkgver.tar.gz
 st.desktop
 st-scrollback-0.8.1.diff
 st-scrollback-mouse-0.8.diff
