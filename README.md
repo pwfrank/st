@@ -44,6 +44,12 @@ Allows colors and terminal attributes to be set dynamically via an .Xresources o
 ### st-alpha 
 Applies background opacity to st windows. Defined by `opacity` in .Xresources file, defaults to `1.0` (no transparency)
 
+### st-externalpipe
+Allows access to scrollback buffer. Copy functions require adding `st-copyout` to your $PATH
+Follow a url in scrollback buffer: `alt-l`
+Copy a url to X clipboard:         `alt-y`
+Copy output of a previous command: `alt-o` 
+
 ## config.h additions
 * keyboard_select mode entry keybinding (removed diff with config.def.h)
 * st-scrollback keybindings (removed diff with config.def.h)
