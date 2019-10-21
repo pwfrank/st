@@ -1,14 +1,15 @@
 # Maintainer: pwfrank
-pkgname=st
+pkgname=st-fpw
+_pkgname=st
 pkgver=0.8.2
-pkgrel=7
+pkgrel=1
 pkgdesc='A simple virtual terminal emulator for X.'
 arch=('i686' 'x86_64' 'armv7h')
 license=('MIT')
 depends=('libxft' 'libxext' 'xorg-fonts-misc')
 makedepends=('ncurses')
 url="https://github.com/pwfrank/st-build"
-source=($pkgname-$pkgver.tar.gz
+source=($_pkgname-$pkgver.tar.gz
 st.desktop
 st-scrollback-0.8.1.diff
 st-scrollback-mouse-0.8.diff
@@ -33,8 +34,11 @@ sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
 'SKIP'
 )
 
+provides=('st')
+conflicts=('st')
+
 prepare() {
-  cd $srcdir/$pkgname-$pkgver
+  cd $srcdir/$_pkgname-$pkgver
   sed -i '/tic /d' Makefile
   patch -i $srcdir/st-scrollback-0.8.1.diff
   patch -i $srcdir/st-scrollback-mouse-0.8.diff
@@ -44,21 +48,21 @@ prepare() {
   #patch -i $srcdir/st-tab-resize.diff
   patch -i $srcdir/st-alpha-0.8.2.diff
   patch -i $srcdir/st-externalpipe-20181016-3be4cf1.diff
-  cp $srcdir/config.h $srcdir/$pkgname-$pkgver/config.h
-  cp $srcdir/$pkgname.desktop $srcdir/$pkgname-$pkgver/$pkgname.desktop
+  cp $srcdir/config.h $srcdir/$_pkgname-$pkgver/config.h
+  cp $srcdir/$_pkgname.desktop $srcdir/$_pkgname-$pkgver/$_pkgname.desktop
 }
 
 build() {
-  cd $srcdir/$pkgname-$pkgver
+  cd $srcdir/$_pkgname-$pkgver
   make X11INC=/usr/include/X11 X11LIB=/usr/lib/X11
 }
 
 package() {
-  cd $srcdir/$pkgname-$pkgver
+  cd $srcdir/$_pkgname-$pkgver
   make PREFIX=/usr DESTDIR="$pkgdir" install
-  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-  install -Dm644 README "$pkgdir/usr/share/doc/$pkgname/README"
-  install -Dm644 $pkgname.desktop "$pkgdir/usr/share/applications/$pkgname.desktop"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$_pkgname/LICENSE"
+  install -Dm644 README "$pkgdir/usr/share/doc/$_pkgname/README"
+  install -Dm644 $_pkgname.desktop "$pkgdir/usr/share/applications/$_pkgname.desktop"
   # remove to avoid conflict with ncurses
   #rm "${pkgdir}/usr/share/terminfo/s/st" "${pkgdir}/usr/share/terminfo/s/st-256color"
 }
