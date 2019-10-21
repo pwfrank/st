@@ -45,7 +45,6 @@ prepare() {
   patch -i $srcdir/st-xresources-20190105-3be4cf1.diff
   patch -i $srcdir/st-keyboard_select-0.8.1.diff
   patch -i $srcdir/st-clipboard-0.8.2.diff
-  #patch -i $srcdir/st-tab-resize.diff
   patch -i $srcdir/st-alpha-0.8.2.diff
   patch -i $srcdir/st-externalpipe-20181016-3be4cf1.diff
   cp $srcdir/config.h $srcdir/$_pkgname-$pkgver/config.h
