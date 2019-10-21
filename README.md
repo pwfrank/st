@@ -17,6 +17,17 @@ Keeps xorg clipboard and primary selections the same, regardless of whether copi
 Adds a vim-like text selection mode that does not require the use of the mouse.
 
 Enter mode: `alt-esc` 
+`h, j, k, l`   move cursor left/down/up/right 
+`!, _, *`      move cursor to the middle of the line/column/screen
+`Backspace, $` move cursor to the beginning/end of the line
+`PgUp, PgDown` move cursor to the beginning/end of the column
+`Home, End`    move cursor to the top/bottom left corner of the screen
+`/, ?`         activate input mode and search up/down
+`n, N`         repeat last search, up/down
+`s`            toggle move/selection mode
+`t`            toggle regular/rectangular selection type
+`Return`       quit keyboard_select, keeping the highlight of the selection
+`Escape`       quit keyboard_select
 
 ### st-scrollback
 Allows scrolling upwards to view previous output. Diff with st.h amended with correct context to apply patch

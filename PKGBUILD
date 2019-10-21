@@ -1,7 +1,7 @@
 # Maintainer: pwfrank
 pkgname=st
 pkgver=0.8.2
-pkgrel=5
+pkgrel=7
 pkgdesc='A simple virtual terminal emulator for X.'
 arch=('i686' 'x86_64' 'armv7h')
 license=('MIT')
