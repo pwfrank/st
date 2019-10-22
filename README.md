@@ -16,18 +16,18 @@ Keeps xorg clipboard and primary selections the same, regardless of whether copi
 ### st-keyboard_select
 Adds a vim-like text selection mode that does not require the use of the mouse.
 
-Enter mode: `alt-esc` 
-`h, j, k, l`   move cursor left/down/up/right 
-`!, _, *`      move cursor to the middle of the line/column/screen
-`Backspace, $` move cursor to the beginning/end of the line
-`PgUp, PgDown` move cursor to the beginning/end of the column
-`Home, End`    move cursor to the top/bottom left corner of the screen
-`/, ?`         activate input mode and search up/down
-`n, N`         repeat last search, up/down
-`s`            toggle move/selection mode
-`t`            toggle regular/rectangular selection type
-`Return`       quit keyboard_select, keeping the highlight of the selection
-`Escape`       quit keyboard_select
+Enter mode: `alt-esc`  
+`h, j, k, l`   move cursor left/down/up/right   
+`!, _, *`      move cursor to the middle of the line/column/screen  
+`Backspace, $` move cursor to the beginning/end of the line 
+`PgUp, PgDown` move cursor to the beginning/end of the column 
+`Home, End`    move cursor to the top/bottom left corner of the screen 
+`/, ?`         activate input mode and search up/down 
+`n, N`         repeat last search, up/down 
+`s`            toggle move/selection mode 
+`t`            toggle regular/rectangular selection type 
+`Return`       quit keyboard_select, keeping the highlight of the selection 
+`Escape`       quit keyboard_select 
 
 ### st-scrollback
 Allows scrolling upwards to view previous output. Diff with st.h amended with correct context to apply patch
@@ -42,16 +42,16 @@ Allows scrolling upwards using shift + mousewheel
 Allows colors and terminal attributes to be set dynamically via an .Xresources or .Xdefaults file
 
 ### st-alpha 
-Applies background opacity to st windows. Defined by `opacity` in .Xresources file. Defaults to 0.9
+Applies background opacity to st windows. Defined by `opacity` in .Xresources file. Defaults to `0.9`
 
 ### st-alpha-swap
 Swap between .Xresources-defined opacity and 1.0 (opaque) with `F5`
 
 ### st-externalpipe
-Allows access to scrollback buffer. Copy functions require adding `st-copyout` to your $PATH
-Follow a url in scrollback buffer: `alt-l`
-Copy a url to X clipboard:         `alt-y`
-Copy output of a previous command: `alt-o` 
+Allows access to scrollback buffer. Copy functions require adding `st-copyout` to your $PATH  
+Follow a url in scrollback buffer: `alt-l`  
+Copy a url to X clipboard:         `alt-y`  
+Copy output of a previous command: `alt-o`   
 
 ## config.h additions
 * keyboard_select mode entry keybinding (removed diff with config.def.h)
