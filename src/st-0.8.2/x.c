@@ -70,6 +70,7 @@ static void selpaste(const Arg *);
 static void zoom(const Arg *);
 static void zoomabs(const Arg *);
 static void zoomreset(const Arg *);
+static void swapalpha(const Arg *);
 
 /* config.h for applying patches and the configuration. */
 #include "config.h"
@@ -292,6 +293,14 @@ void
 numlock(const Arg *dummy)
 {
 	win.mode ^= MODE_NUMLOCK;
+}
+
+void
+swapalpha(const Arg *dummy)
+{
+	alpha = (alpha == alpha2) ? alpha3 : alpha2;
+	xloadcols();
+	redraw();
 }
 
 void

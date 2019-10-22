@@ -42,7 +42,10 @@ Allows scrolling upwards using shift + mousewheel
 Allows colors and terminal attributes to be set dynamically via an .Xresources or .Xdefaults file
 
 ### st-alpha 
-Applies background opacity to st windows. Defined by `opacity` in .Xresources file, defaults to `1.0` (no transparency)
+Applies background opacity to st windows. Defined by `opacity` in .Xresources file. Defaults to 0.9
+
+### st-alpha-swap
+Swap between .Xresources-defined opacity and 1.0 (opaque) with `F5`
 
 ### st-externalpipe
 Allows access to scrollback buffer. Copy functions require adding `st-copyout` to your $PATH

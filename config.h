@@ -94,7 +94,9 @@ static char *copyurlcmd[] = { "/bin/sh", "-c",
 static char *copyoutput[] = { "/bin/sh", "-c", "st-copyout", "externalpipe", NULL };
 
 /* bg opacity */
-float alpha = 1.0;
+float alpha = 0.9;
+float alpha2 = 1.0;
+float alpha3 = 0.9;
 
 /* Terminal colors (16 first used in escape sequence) */
 static const char *colorname[] = {
@@ -201,6 +203,7 @@ ResourcePref resources[] = {
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
 		{ "opacity",      FLOAT,   &alpha },
+		{ "opacity",      FLOAT,   &alpha3 },
 };
 
 /*
@@ -257,6 +260,7 @@ static Shortcut shortcuts[] = {
 	{ MODKEY,               XK_l,           externalpipe,   {.v = openurlcmd } },
 	{ MODKEY,               XK_y,           externalpipe,   {.v = copyurlcmd } },
 	{ MODKEY,               XK_o,           externalpipe,   {.v = copyoutput } },
+	{ XK_ANY_MOD,           XK_F5,          swapalpha,     {.i =  0} },
 };
 
 /*
