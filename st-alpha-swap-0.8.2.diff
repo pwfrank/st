@@ -1,0 +1,27 @@
+diff --git a/src/st-0.8.2/x.c b/src/st-0.8.2/x.c
+index 466f66a..e5171cc 100644
+--- a/src/st-0.8.2/x.c
++++ b/src/st-0.8.2/x.c
+@@ -70,6 +70,7 @@ static void selpaste(const Arg *);
+ static void zoom(const Arg *);
+ static void zoomabs(const Arg *);
+ static void zoomreset(const Arg *);
++static void swapalpha(const Arg *);
+ 
+ /* config.h for applying patches and the configuration. */
+ #include "config.h"
+@@ -294,6 +295,14 @@ numlock(const Arg *dummy)
+ 	win.mode ^= MODE_NUMLOCK;
+ }
+ 
++void
++swapalpha(const Arg *dummy)
++{
++	alpha = (alpha == alpha2) ? alpha3 : alpha2;
++	xloadcols();
++	redraw();
++}
++
+ void
+ zoom(const Arg *arg)
+ {
