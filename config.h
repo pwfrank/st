@@ -49,7 +49,7 @@ static unsigned int actionfps = 30;
  * blinking timeout (set to 0 to disable blinking) for the terminal blinking
  * attribute.
  */
-static unsigned int blinktimeout = 800;
+static unsigned int blinktimeout = 600;
 
 /*
  * thickness of underline and bar cursors
@@ -141,12 +141,14 @@ static unsigned int defaultrcs = 257;
 
 /*
  * Default shape of cursor
+ * 1: Blinking Block ("█")
  * 2: Block ("█")
+ * 3: Blinking Underline ("_")
  * 4: Underline ("_")
  * 6: Bar ("|")
  * 7: Snowman ("☃")
  */
-static unsigned int cursorshape = 2;
+static unsigned int cursorshape = 1;
 
 /*
  * Default columns and rows numbers 80/24
