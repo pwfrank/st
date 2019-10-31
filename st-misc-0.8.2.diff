@@ -1,0 +1,12 @@
+diff --git a/src/st-0.8.2/x.c b/src/st-0.8.2/x.c
+index bbfba1d..1cd9232 100644
+--- a/src/st-0.8.2/x.c
++++ b/src/st-0.8.2/x.c
+@@ -300,6 +300,7 @@ swapalpha(const Arg *dummy)
+ {
+ 	alpha = (alpha == alpha2) ? alpha3 : alpha2;
+ 	xloadcols();
++	xsetcursor(cursorshape);
+ 	redraw();
+ }
+ 
