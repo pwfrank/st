@@ -194,13 +194,13 @@ ResourcePref resources[] = {
 		{ "background",   STRING,  &colorname[256] },
 		{ "foreground",   STRING,  &colorname[257] },
 		{ "cursorColor",  STRING,  &colorname[258] },
-		/*{ "termname",     STRING,  &termname },
+		/*{ "termname",     STRING,  &termname },*/
 		{ "shell",        STRING,  &shell },
 		{ "xfps",         INTEGER, &xfps },
-		{ "actionfps",    INTEGER, &actionfps },
+		/*{ "actionfps",    INTEGER, &actionfps },
 		{ "blinktimeout", INTEGER, &blinktimeout },
-		{ "bellvolume",   INTEGER, &bellvolume },
-		{ "tabspaces",    INTEGER, &tabspaces },*/
+		{ "bellvolume",   INTEGER, &bellvolume }, */
+		{ "tabspaces",    INTEGER, &tabspaces },
 		{ "borderpx",     INTEGER, &borderpx },
 		{ "cwscale",      FLOAT,   &cwscale },
 		{ "chscale",      FLOAT,   &chscale },
@@ -262,7 +262,7 @@ static Shortcut shortcuts[] = {
 	{ MODKEY,               XK_l,           externalpipe,   {.v = openurlcmd } },
 	{ MODKEY,               XK_y,           externalpipe,   {.v = copyurlcmd } },
 	{ MODKEY,               XK_o,           externalpipe,   {.v = copyoutput } },
-	{ XK_ANY_MOD,           XK_F5,          swapalpha,     {.i =  0} },
+	{ ShiftMask,           XK_F5,          swapalpha,     {.i =  0} },
 };
 
 /*
