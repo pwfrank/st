@@ -48,7 +48,7 @@ prepare() {
   patch -i $srcdir/st-scrollback-mouse-0.8.diff
   patch -i $srcdir/st-xresources-20190105-3be4cf1.diff
   patch -i $srcdir/st-keyboard_select-0.8.1.diff
-  patch -i $srcdir/st-clipboard-0.8.2.diff
+  #patch -i $srcdir/st-clipboard-0.8.2.diff
   patch -i $srcdir/st-alpha-0.8.2.diff
   patch -i $srcdir/st-externalpipe-20181016-3be4cf1.diff
   patch -i $srcdir/st-alpha-swap-0.8.2.diff
