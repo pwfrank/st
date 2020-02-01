@@ -228,8 +228,8 @@ MouseKey mkeys[] = {
 	{ Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
 	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
 	{ Button5,              MODKEY,         kscrolldown,    {.i =  1} },
-/*	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
-	{ Button5,              MODKEY|ShiftMask,         zoom,    {.f =  -1} },*/
+	{ Button4,              MODKEY|ControlMask,         zoom,      {.f =  +1} },
+	{ Button5,              MODKEY|ControlMask,         zoom,    {.f =  -1} },
 };
 
 static Shortcut shortcuts[] = {
