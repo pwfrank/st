@@ -206,6 +206,8 @@ ResourcePref resources[] = {
 		{ "chscale",      FLOAT,   &chscale },
 		{ "opacity",      FLOAT,   &alpha },
 		{ "opacity",      FLOAT,   &alpha3 },
+		{ "termcol",      INTEGER,   &cols },
+		{ "termrow",      INTEGER,   &rows },
 };
 
 /*
@@ -228,8 +230,8 @@ MouseKey mkeys[] = {
 	{ Button5,              ShiftMask,      kscrolldown,    {.i =  1} },
 	{ Button4,              MODKEY,         kscrollup,      {.i =  1} },
 	{ Button5,              MODKEY,         kscrolldown,    {.i =  1} },
-	{ Button4,              MODKEY|ControlMask,         zoom,      {.f =  +1} },
-	{ Button5,              MODKEY|ControlMask,         zoom,    {.f =  -1} },
+	{ Button4,              MODKEY|ShiftMask,         zoom,      {.f =  +1} },
+	{ Button5,              MODKEY|ShiftMask,         zoom,    {.f =  -1} },
 };
 
 static Shortcut shortcuts[] = {
@@ -250,8 +252,8 @@ static Shortcut shortcuts[] = {
  	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
 	{ ControlMask, 			XK_Up,          zoom,           {.f = +2} },
 	{ ControlMask, 			XK_Down,        zoom,           {.f = -2} },
-	{ TERMMOD,				XK_K,  		    zoom,           {.f = +2} },
-	{ TERMMOD,				XK_J, 	        zoom,           {.f = -2} },
+	{ MODKEY|ShiftMask,		XK_K,  		    zoom,           {.f = +2} },
+	{ MODKEY|ShiftMask,		XK_J, 	        zoom,           {.f = -2} },
 	{ MODKEY,          		XK_k,  			kscrollup,      {.i =  1} },
 	{ MODKEY,          		XK_j,   		kscrolldown,    {.i =  1} },
 	{ MODKEY,           	XK_Up,  		kscrollup,      {.i =  1} },

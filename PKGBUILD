@@ -20,7 +20,7 @@ st-alpha-0.8.2.diff
 st-externalpipe-20181016-3be4cf1.diff
 st-alpha-swap-0.8.2.diff
 st-blinking-cursor-20180605.diff
-st-misc-0.8.2.diff
+#st-misc-0.8.2.diff
 config.h
 )
 sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
@@ -34,7 +34,7 @@ sha256sums=('aeb74e10aa11ed364e1bcc635a81a523119093e63befd2f231f8b0705b15bf35'
 '9c49b29901d19d92251e3d6d2e9075cfc9a98bc50c10c2344ec63ef0c917e61a'
 'de2be99fa0e45b72d7a8e362d75b2bda6ad0a72f1634fa192c25bfe36c85076a' 
 'b134dd8d3531c7c152ed0bff2dd269b685a666f1909d34cc928405d6cbe67757'
-'SKIP'
+#'SKIP'
 'SKIP'
 )
 
@@ -53,7 +53,7 @@ prepare() {
   patch -i $srcdir/st-externalpipe-20181016-3be4cf1.diff
   patch -i $srcdir/st-alpha-swap-0.8.2.diff
   patch -i $srcdir/st-blinking-cursor-20180605.diff
-  patch -i $srcdir/st-misc-0.8.2.diff
+  #patch -i $srcdir/st-misc-0.8.2.diff
   cp $srcdir/config.h $srcdir/$_pkgname-$pkgver/config.h
   cp $srcdir/$_pkgname.desktop $srcdir/$_pkgname-$pkgver/$_pkgname.desktop
 }

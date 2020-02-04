@@ -300,7 +300,6 @@ swapalpha(const Arg *dummy)
 {
 	alpha = (alpha == alpha2) ? alpha3 : alpha2;
 	xloadcols();
-	xsetcursor(cursorshape);
 	redraw();
 }
 
