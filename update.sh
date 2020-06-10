@@ -13,4 +13,4 @@ ln -s ../../config.h .
 cd ../
 rm -f *.diff *.h *.desktop *.gz
 cd ../
-rm -rf pkg #*.xz
+rm -rf pkg *.xz
