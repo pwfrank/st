@@ -266,7 +266,7 @@ static Shortcut shortcuts[] = {
 	{ MODKEY,          		XK_Down,   		kscrolldown,    {.i =  1} },
 	{ MODKEY,               XK_c,           clipcopy,       {.i =  0} },
 	{ MODKEY,               XK_v,           clippaste,      {.i =  0} },
-	// { TERMMOD,              XK_Escape,      keyboard_select,{ 0 } },
+	{ MODKEY,              XK_Escape,      keyboard_select,{ 0 } },
 	{ ShiftMask,           XK_F5,          swapalpha,     {.i =  0} },
 };
 

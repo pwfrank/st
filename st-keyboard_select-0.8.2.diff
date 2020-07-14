@@ -1,5 +1,30 @@
+From 45cadc1ce5d8d9dd3493c2e9979e8958d87e8bc5 Mon Sep 17 00:00:00 2001
+From: Bartosz Sosna <brtsos@gmail.com>
+Date: Sat, 4 May 2019 00:28:24 +0200
+Subject: [PATCH] Adjust patch to version st-0.8.2
+
+---
+ config.def.h |   1 +
+ st.c         | 222 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ st.h         |   1 +
+ win.h        |   3 +
+ x.c          |  15 ++++
+ 5 files changed, 242 insertions(+)
+
+#diff --git a/config.def.h b/config.def.h
+#index 482901e..c1e9cce 100644
+#--- a/config.def.h
+#+++ b/config.def.h
+#@@ -178,6 +178,7 @@ static Shortcut shortcuts[] = {
+# 	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
+# 	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
+# 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
+#+    { TERMMOD,              XK_Escape,      keyboard_select,{ 0 } },
+# };
+# 
+# /*
 diff --git a/st.c b/st.c
-index 46c954b..1c07288 100644
+index ede7ae6..c2116b2 100644
 --- a/st.c
 +++ b/st.c
 @@ -16,6 +16,8 @@
@@ -8,20 +33,20 @@ index 46c954b..1c07288 100644
  #include <wchar.h>
 +#include <X11/keysym.h>
 +#include <X11/X.h>
-
+ 
  #include "st.h"
  #include "win.h"
-@@ -2495,6 +2497,9 @@ tresize(int col, int row)
+@@ -2464,6 +2466,9 @@ tresize(int col, int row)
  	int *bp;
  	TCursor c;
-
+ 
 +	if ( row < term.row  || col < term.col )
 +        toggle_winmode(trt_kbdselect(XK_Escape, NULL, 0));
 +
  	if (col < 1 || row < 1) {
  		fprintf(stderr,
  		        "tresize: error resizing to %dx%d\n", col, row);
-@@ -2616,3 +2621,220 @@ redraw(void)
+@@ -2586,3 +2591,220 @@ redraw(void)
  	tfulldirt();
  	draw();
  }
@@ -36,7 +61,7 @@ index 46c954b..1c07288 100644
 +        col = term.col, bot = term.bot;
 +        g = xmalloc(col * sizeof(Glyph));
 +        memcpy(g, term.line[bot], col * sizeof(Glyph));
-+
++    
 +    }
 +    else if ( ksym == -2 )
 +        memcpy(term.line[bot], g, col * sizeof(Glyph));
@@ -89,7 +114,7 @@ index 46c954b..1c07288 100644
 +        }
 +        if ( r != NULL )    break;
 +    }
-+
++        
 +    if ( i != bound ) {
 +        term.c.y = i / term.col, term.c.x = i % term.col;
 +        select_or_drawcursor(selectsearch_mode, type);
@@ -103,8 +128,8 @@ index 46c954b..1c07288 100644
 +    static int sens, quant;
 +    static char selectsearch_mode;
 +    int i, bound, *xy;
-+
-+
++    
++    
 +    if ( selectsearch_mode & 2 ) {
 +		if ( ksym == XK_Return ) {
 +			selectsearch_mode ^= 2;
@@ -130,7 +155,7 @@ index 46c954b..1c07288 100644
 +        if ( ksym != XK_BackSpace )
 +            search(selectsearch_mode, &target[0], ptarget, sens, type, &cu);
 +
-+        term.dirty[term.bot] = 1;
++        term.dirty[term.bot] = 1; 
 +        drawregion(0, term.bot, term.col, term.bot + 1);
 +        return 0;
 +    }
@@ -243,43 +268,44 @@ index 46c954b..1c07288 100644
 +    return 0;
 +}
 diff --git a/st.h b/st.h
-index dac64d8..d6693bf 100644
+index 4da3051..22125e4 100644
 --- a/st.h
 +++ b/st.h
-@@ -110,6 +110,7 @@ size_t utf8encode(Rune, char *);
+@@ -109,6 +109,7 @@ size_t utf8encode(Rune, char *);
  void *xmalloc(size_t);
  void *xrealloc(void *, size_t);
  char *xstrdup(char *);
 +int trt_kbdselect(KeySym, char *, int);
-
+ 
  /* config.h globals */
  extern char *utmp;
 diff --git a/win.h b/win.h
-index 31f327d..75a2756 100644
+index a6ef1b9..a240783 100644
 --- a/win.h
 +++ b/win.h
 @@ -21,6 +21,7 @@ enum win_mode {
  	MODE_NUMLOCK     = 1 << 17,
  	MODE_MOUSE       = MODE_MOUSEBTN|MODE_MOUSEMOTION|MODE_MOUSEX10\
  	                  |MODE_MOUSEMANY,
-+	MODE_KBDSELECT   = 1 << 18,
++    MODE_KBDSELECT   = 1 << 18,
  };
-
+ 
  void xbell(void);
-@@ -36,3 +37,5 @@ void xsetmode(int, unsigned int);
+@@ -36,4 +37,6 @@ void xsetmode(int, unsigned int);
  void xsetpointermotion(int);
  void xsetsel(char *);
  int xstartdraw(void);
 +void toggle_winmode(int);
 +void keyboard_select(const Arg *);
+ void xximspot(int, int);
 diff --git a/x.c b/x.c
-index c343ba2..14279de 100644
+index 5828a3b..5221641 100644
 --- a/x.c
 +++ b/x.c
-@@ -1696,6 +1696,13 @@ kpress(XEvent *ev)
- 		return;
-
- 	len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
+@@ -1731,6 +1731,13 @@ if (xw.ime.xic)
+		len = XmbLookupString(xw.ime.xic, e, buf, sizeof buf, &ksym, &status);
+	else
+		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
 +    if ( IS_SET(MODE_KBDSELECT) ) {
 +		if ( match(XK_NO_MOD, e->state) ||
 +            (XK_Shift_L | XK_Shift_R) & e->state )
@@ -290,10 +316,10 @@ index c343ba2..14279de 100644
  	/* 1. shortcuts */
  	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
  		if (ksym == bp->keysym && match(bp->mod, e->state)) {
-@@ -1880,6 +1887,14 @@ usage(void)
+@@ -1914,6 +1921,14 @@ usage(void)
  	    " [stty_args ...]\n", argv0, argv0);
  }
-
+ 
 +void toggle_winmode(int flag) {
 +        win.mode ^= flag;
 +}
@@ -305,3 +331,6 @@ index c343ba2..14279de 100644
  int
  main(int argc, char *argv[])
  {
+-- 
+2.17.1
+
