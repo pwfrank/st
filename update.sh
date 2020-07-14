@@ -7,7 +7,7 @@ fi
 
 rm -rf pkg src *.xz
 makepkg -si --noconfirm || exit 1
-cd src/st-0.8.2/ || exit 1
+cd src/st-0.8.3/ || exit 1
 rm -rf *.o* LEGACY FAQ TODO config.def.h st config.h
 ln -s ../../config.h .
 cd ../

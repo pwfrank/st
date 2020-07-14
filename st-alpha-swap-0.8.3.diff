@@ -3,9 +3,9 @@ index 466f66a..e5171cc 100644
 --- a/src/st-0.8.2/x.c
 +++ b/src/st-0.8.2/x.c
 @@ -70,6 +70,7 @@ static void selpaste(const Arg *);
- static void zoom(const Arg *);
  static void zoomabs(const Arg *);
  static void zoomreset(const Arg *);
+ static void ttysend(const Arg *);
 +static void swapalpha(const Arg *);
  
  /* config.h for applying patches and the configuration. */

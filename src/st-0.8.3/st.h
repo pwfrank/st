@@ -75,14 +75,8 @@ typedef union {
 	uint ui;
 	float f;
 	const void *v;
+	const char *s;
 } Arg;
-
-typedef struct {
-	uint b;
-	uint mask;
-	void (*func)(const Arg *);
-	const Arg arg;
-} MouseKey;
 
 void die(const char *, ...);
 void redraw(void);
@@ -93,7 +87,6 @@ void kscrollup(const Arg *);
 void printscreen(const Arg *);
 void printsel(const Arg *);
 void sendbreak(const Arg *);
-void externalpipe(const Arg *);
 void toggleprinter(const Arg *);
 
 int tattrset(int);
@@ -132,14 +125,14 @@ void drawboxes(int, int, int, int, XftColor *, XftColor *, const XftGlyphFontSpe
 
 /* config.h globals */
 extern char *utmp;
+extern char *scroll;
 extern char *stty_args;
 extern char *vtiden;
-extern char *worddelimiters;
+extern wchar_t *worddelimiters;
 extern int allowaltscreen;
 extern char *termname;
 extern unsigned int tabspaces;
 extern unsigned int defaultfg;
 extern unsigned int defaultbg;
-extern const int boxdraw, boxdraw_bold, boxdraw_braille;
 extern float alpha;
-extern MouseKey mkeys[];
+extern const int boxdraw, boxdraw_bold, boxdraw_braille;
