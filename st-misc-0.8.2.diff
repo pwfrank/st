@@ -6,6 +6,6 @@ index bbfba1d..1cd9232 100644
  {
  	alpha = (alpha == alpha2) ? alpha3 : alpha2;
  	xloadcols();
-+	xsetcursor(cursorshape);
++	xsetcursor(cursorstyle);
  	redraw();
  }

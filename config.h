@@ -43,6 +43,19 @@ static unsigned int tripleclicktimeout = 600;
 /* alt screens */
 int allowaltscreen = 1;
 
+/* allow certain non-interactive (insecure) window operations such as:
+   setting the clipboard text */
+int allowwindowops = 0;
+
+/*
+ * draw latency range in ms - from new content/keypress/etc until drawing.
+ * within this range, st draws when content stops arriving (idle). mostly it's
+ * near minlatency, but it waits longer for slow updates to avoid partial draw.
+ * low minlatency will tear/flicker more, as it can "detect" idle too early.
+ */
+static double minlatency = 8;
+static double maxlatency = 33;
+
 /* frames per second st should at maximum draw to the screen */
 static unsigned int xfps = 120;
 static unsigned int actionfps = 30;
@@ -151,10 +164,9 @@ static unsigned int defaultrcs = 257;
  * 6: Bar ("|")
  * 7: Snowman ("☃")
  */
-static unsigned int cursorshape = 1;
-
-// static unsigned int cursorstyle = 1;
-// static Rune stcursor = 0x2603; /* snowman (U+2603) */
+//static unsigned int cursorshape = 1;
+static unsigned int cursorstyle = 1;
+static Rune stcursor = 0x2603; /* snowman (U+2603) */
  
 /*
  * Default columns and rows numbers
@@ -266,7 +278,8 @@ static Shortcut shortcuts[] = {
 	{ MODKEY,          		XK_Down,   		kscrolldown,    {.i =  1} },
 	{ MODKEY,               XK_c,           clipcopy,       {.i =  0} },
 	{ MODKEY,               XK_v,           clippaste,      {.i =  0} },
-	{ MODKEY,              XK_Escape,      keyboard_select,{ 0 } },
+	// { MODKEY,              XK_Escape,      keyboard_select,{ 0 } },
+	{ MODKEY,              XK_Escape,      keyboard_select, {.i =  0 } },
 	{ ShiftMask,           XK_F5,          swapalpha,     {.i =  0} },
 };
 
