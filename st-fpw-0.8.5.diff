@@ -1,0 +1,1667 @@
+diff --git a/Makefile b/Makefile
+index 470ac86..6dfa212 100644
+--- a/Makefile
++++ b/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include config.mk
+ 
+-SRC = st.c x.c
++SRC = st.c x.c boxdraw.c
+ OBJ = $(SRC:.c=.o)
+ 
+ all: options st
+@@ -23,6 +23,7 @@ config.h:
+ 
+ st.o: config.h st.h win.h
+ x.o: arg.h config.h st.h win.h
++boxdraw.o: config.h st.h boxdraw_data.h
+ 
+ $(OBJ): config.h config.mk
+ 
+diff --git a/boxdraw.c b/boxdraw.c
+new file mode 100644
+index 0000000..28a92d0
+--- /dev/null
++++ b/boxdraw.c
+@@ -0,0 +1,194 @@
++/*
++ * Copyright 2018 Avi Halachmi (:avih) avihpit@yahoo.com https://github.com/avih
++ * MIT/X Consortium License
++ */
++
++#include <X11/Xft/Xft.h>
++#include "st.h"
++#include "boxdraw_data.h"
++
++/* Rounded non-negative integers division of n / d  */
++#define DIV(n, d) (((n) + (d) / 2) / (d))
++
++static Display *xdpy;
++static Colormap xcmap;
++static XftDraw *xd;
++static Visual *xvis;
++
++static void drawbox(int, int, int, int, XftColor *, XftColor *, ushort);
++static void drawboxlines(int, int, int, int, XftColor *, ushort);
++
++/* public API */
++
++void
++boxdraw_xinit(Display *dpy, Colormap cmap, XftDraw *draw, Visual *vis)
++{
++	xdpy = dpy; xcmap = cmap; xd = draw, xvis = vis;
++}
++
++int
++isboxdraw(Rune u)
++{
++	Rune block = u & ~0xff;
++	return (boxdraw && block == 0x2500 && boxdata[(uint8_t)u]) ||
++	       (boxdraw_braille && block == 0x2800);
++}
++
++/* the "index" is actually the entire shape data encoded as ushort */
++ushort
++boxdrawindex(const Glyph *g)
++{
++	if (boxdraw_braille && (g->u & ~0xff) == 0x2800)
++		return BRL | (uint8_t)g->u;
++	if (boxdraw_bold && (g->mode & ATTR_BOLD))
++		return BDB | boxdata[(uint8_t)g->u];
++	return boxdata[(uint8_t)g->u];
++}
++
++void
++drawboxes(int x, int y, int cw, int ch, XftColor *fg, XftColor *bg,
++          const XftGlyphFontSpec *specs, int len)
++{
++	for ( ; len-- > 0; x += cw, specs++)
++		drawbox(x, y, cw, ch, fg, bg, (ushort)specs->glyph);
++}
++
++/* implementation */
++
++void
++drawbox(int x, int y, int w, int h, XftColor *fg, XftColor *bg, ushort bd)
++{
++	ushort cat = bd & ~(BDB | 0xff);  /* mask out bold and data */
++	if (bd & (BDL | BDA)) {
++		/* lines (light/double/heavy/arcs) */
++		drawboxlines(x, y, w, h, fg, bd);
++
++	} else if (cat == BBD) {
++		/* lower (8-X)/8 block */
++		int d = DIV((uint8_t)bd * h, 8);
++		XftDrawRect(xd, fg, x, y + d, w, h - d);
++
++	} else if (cat == BBU) {
++		/* upper X/8 block */
++		XftDrawRect(xd, fg, x, y, w, DIV((uint8_t)bd * h, 8));
++
++	} else if (cat == BBL) {
++		/* left X/8 block */
++		XftDrawRect(xd, fg, x, y, DIV((uint8_t)bd * w, 8), h);
++
++	} else if (cat == BBR) {
++		/* right (8-X)/8 block */
++		int d = DIV((uint8_t)bd * w, 8);
++		XftDrawRect(xd, fg, x + d, y, w - d, h);
++
++	} else if (cat == BBQ) {
++		/* Quadrants */
++		int w2 = DIV(w, 2), h2 = DIV(h, 2);
++		if (bd & TL)
++			XftDrawRect(xd, fg, x, y, w2, h2);
++		if (bd & TR)
++			XftDrawRect(xd, fg, x + w2, y, w - w2, h2);
++		if (bd & BL)
++			XftDrawRect(xd, fg, x, y + h2, w2, h - h2);
++		if (bd & BR)
++			XftDrawRect(xd, fg, x + w2, y + h2, w - w2, h - h2);
++
++	} else if (bd & BBS) {
++		/* Shades - data is 1/2/3 for 25%/50%/75% alpha, respectively */
++		int d = (uint8_t)bd;
++		XftColor xfc;
++		XRenderColor xrc = { .alpha = 0xffff };
++
++		xrc.red = DIV(fg->color.red * d + bg->color.red * (4 - d), 4);
++		xrc.green = DIV(fg->color.green * d + bg->color.green * (4 - d), 4);
++		xrc.blue = DIV(fg->color.blue * d + bg->color.blue * (4 - d), 4);
++
++		XftColorAllocValue(xdpy, xvis, xcmap, &xrc, &xfc);
++		XftDrawRect(xd, &xfc, x, y, w, h);
++		XftColorFree(xdpy, xvis, xcmap, &xfc);
++
++	} else if (cat == BRL) {
++		/* braille, each data bit corresponds to one dot at 2x4 grid */
++		int w1 = DIV(w, 2);
++		int h1 = DIV(h, 4), h2 = DIV(h, 2), h3 = DIV(3 * h, 4);
++
++		if (bd & 1)   XftDrawRect(xd, fg, x, y, w1, h1);
++		if (bd & 2)   XftDrawRect(xd, fg, x, y + h1, w1, h2 - h1);
++		if (bd & 4)   XftDrawRect(xd, fg, x, y + h2, w1, h3 - h2);
++		if (bd & 8)   XftDrawRect(xd, fg, x + w1, y, w - w1, h1);
++		if (bd & 16)  XftDrawRect(xd, fg, x + w1, y + h1, w - w1, h2 - h1);
++		if (bd & 32)  XftDrawRect(xd, fg, x + w1, y + h2, w - w1, h3 - h2);
++		if (bd & 64)  XftDrawRect(xd, fg, x, y + h3, w1, h - h3);
++		if (bd & 128) XftDrawRect(xd, fg, x + w1, y + h3, w - w1, h - h3);
++
++	}
++}
++
++void
++drawboxlines(int x, int y, int w, int h, XftColor *fg, ushort bd)
++{
++	/* s: stem thickness. width/8 roughly matches underscore thickness. */
++	/* We draw bold as 1.5 * normal-stem and at least 1px thicker.      */
++	/* doubles draw at least 3px, even when w or h < 3. bold needs 6px. */
++	int mwh = MIN(w, h);
++	int base_s = MAX(1, DIV(mwh, 8));
++	int bold = (bd & BDB) && mwh >= 6;  /* possibly ignore boldness */
++	int s = bold ? MAX(base_s + 1, DIV(3 * base_s, 2)) : base_s;
++	int w2 = DIV(w - s, 2), h2 = DIV(h - s, 2);
++	/* the s-by-s square (x + w2, y + h2, s, s) is the center texel.    */
++	/* The base length (per direction till edge) includes this square.  */
++
++	int light = bd & (LL | LU | LR | LD);
++	int double_ = bd & (DL | DU | DR | DD);
++
++	if (light) {
++		/* d: additional (negative) length to not-draw the center   */
++		/* texel - at arcs and avoid drawing inside (some) doubles  */
++		int arc = bd & BDA;
++		int multi_light = light & (light - 1);
++		int multi_double = double_ & (double_ - 1);
++		/* light crosses double only at DH+LV, DV+LH (ref. shapes)  */
++		int d = arc || (multi_double && !multi_light) ? -s : 0;
++
++		if (bd & LL)
++			XftDrawRect(xd, fg, x, y + h2, w2 + s + d, s);
++		if (bd & LU)
++			XftDrawRect(xd, fg, x + w2, y, s, h2 + s + d);
++		if (bd & LR)
++			XftDrawRect(xd, fg, x + w2 - d, y + h2, w - w2 + d, s);
++		if (bd & LD)
++			XftDrawRect(xd, fg, x + w2, y + h2 - d, s, h - h2 + d);
++	}
++
++	/* double lines - also align with light to form heavy when combined */
++	if (double_) {
++		/*
++		* going clockwise, for each double-ray: p is additional length
++		* to the single-ray nearer to the previous direction, and n to
++		* the next. p and n adjust from the base length to lengths
++		* which consider other doubles - shorter to avoid intersections
++		* (p, n), or longer to draw the far-corner texel (n).
++		*/
++		int dl = bd & DL, du = bd & DU, dr = bd & DR, dd = bd & DD;
++		if (dl) {
++			int p = dd ? -s : 0, n = du ? -s : dd ? s : 0;
++			XftDrawRect(xd, fg, x, y + h2 + s, w2 + s + p, s);
++			XftDrawRect(xd, fg, x, y + h2 - s, w2 + s + n, s);
++		}
++		if (du) {
++			int p = dl ? -s : 0, n = dr ? -s : dl ? s : 0;
++			XftDrawRect(xd, fg, x + w2 - s, y, s, h2 + s + p);
++			XftDrawRect(xd, fg, x + w2 + s, y, s, h2 + s + n);
++		}
++		if (dr) {
++			int p = du ? -s : 0, n = dd ? -s : du ? s : 0;
++			XftDrawRect(xd, fg, x + w2 - p, y + h2 - s, w - w2 + p, s);
++			XftDrawRect(xd, fg, x + w2 - n, y + h2 + s, w - w2 + n, s);
++		}
++		if (dd) {
++			int p = dr ? -s : 0, n = dl ? -s : dr ? s : 0;
++			XftDrawRect(xd, fg, x + w2 + s, y + h2 - p, s, h - h2 + p);
++			XftDrawRect(xd, fg, x + w2 - s, y + h2 - n, s, h - h2 + n);
++		}
++	}
++}
+diff --git a/boxdraw_data.h b/boxdraw_data.h
+new file mode 100644
+index 0000000..7890500
+--- /dev/null
++++ b/boxdraw_data.h
+@@ -0,0 +1,214 @@
++/*
++ * Copyright 2018 Avi Halachmi (:avih) avihpit@yahoo.com https://github.com/avih
++ * MIT/X Consortium License
++ */
++
++/*
++ * U+25XX codepoints data
++ *
++ * References:
++ *   http://www.unicode.org/charts/PDF/U2500.pdf
++ *   http://www.unicode.org/charts/PDF/U2580.pdf
++ *
++ * Test page:
++ *   https://github.com/GNOME/vte/blob/master/doc/boxes.txt
++ */
++
++/* Each shape is encoded as 16-bits. Higher bits are category, lower are data */
++/* Categories (mutually exclusive except BDB): */
++/* For convenience, BDL/BDA/BBS/BDB are 1 bit each, the rest are enums */
++#define BDL (1<<8)   /* Box Draw Lines (light/double/heavy) */
++#define BDA (1<<9)   /* Box Draw Arc (light) */
++
++#define BBD (1<<10)  /* Box Block Down (lower) X/8 */
++#define BBL (2<<10)  /* Box Block Left X/8 */
++#define BBU (3<<10)  /* Box Block Upper X/8 */
++#define BBR (4<<10)  /* Box Block Right X/8 */
++#define BBQ (5<<10)  /* Box Block Quadrants */
++#define BRL (6<<10)  /* Box Braille (data is lower byte of U28XX) */
++
++#define BBS (1<<14)  /* Box Block Shades */
++#define BDB (1<<15)  /* Box Draw is Bold */
++
++/* (BDL/BDA) Light/Double/Heavy x Left/Up/Right/Down/Horizontal/Vertical      */
++/* Heavy is light+double (literally drawing light+double align to form heavy) */
++#define LL (1<<0)
++#define LU (1<<1)
++#define LR (1<<2)
++#define LD (1<<3)
++#define LH (LL+LR)
++#define LV (LU+LD)
++
++#define DL (1<<4)
++#define DU (1<<5)
++#define DR (1<<6)
++#define DD (1<<7)
++#define DH (DL+DR)
++#define DV (DU+DD)
++
++#define HL (LL+DL)
++#define HU (LU+DU)
++#define HR (LR+DR)
++#define HD (LD+DD)
++#define HH (HL+HR)
++#define HV (HU+HD)
++
++/* (BBQ) Quadrants Top/Bottom x Left/Right */
++#define TL (1<<0)
++#define TR (1<<1)
++#define BL (1<<2)
++#define BR (1<<3)
++
++/* Data for U+2500 - U+259F except dashes/diagonals */
++static const unsigned short boxdata[256] = {
++	/* light lines */
++	[0x00] = BDL + LH,       /* light horizontal */
++	[0x02] = BDL + LV,       /* light vertical */
++	[0x0c] = BDL + LD + LR,  /* light down and right */
++	[0x10] = BDL + LD + LL,  /* light down and left */
++	[0x14] = BDL + LU + LR,  /* light up and right */
++	[0x18] = BDL + LU + LL,  /* light up and left */
++	[0x1c] = BDL + LV + LR,  /* light vertical and right */
++	[0x24] = BDL + LV + LL,  /* light vertical and left */
++	[0x2c] = BDL + LH + LD,  /* light horizontal and down */
++	[0x34] = BDL + LH + LU,  /* light horizontal and up */
++	[0x3c] = BDL + LV + LH,  /* light vertical and horizontal */
++	[0x74] = BDL + LL,       /* light left */
++	[0x75] = BDL + LU,       /* light up */
++	[0x76] = BDL + LR,       /* light right */
++	[0x77] = BDL + LD,       /* light down */
++
++	/* heavy [+light] lines */
++	[0x01] = BDL + HH,
++	[0x03] = BDL + HV,
++	[0x0d] = BDL + HR + LD,
++	[0x0e] = BDL + HD + LR,
++	[0x0f] = BDL + HD + HR,
++	[0x11] = BDL + HL + LD,
++	[0x12] = BDL + HD + LL,
++	[0x13] = BDL + HD + HL,
++	[0x15] = BDL + HR + LU,
++	[0x16] = BDL + HU + LR,
++	[0x17] = BDL + HU + HR,
++	[0x19] = BDL + HL + LU,
++	[0x1a] = BDL + HU + LL,
++	[0x1b] = BDL + HU + HL,
++	[0x1d] = BDL + HR + LV,
++	[0x1e] = BDL + HU + LD + LR,
++	[0x1f] = BDL + HD + LR + LU,
++	[0x20] = BDL + HV + LR,
++	[0x21] = BDL + HU + HR + LD,
++	[0x22] = BDL + HD + HR + LU,
++	[0x23] = BDL + HV + HR,
++	[0x25] = BDL + HL + LV,
++	[0x26] = BDL + HU + LD + LL,
++	[0x27] = BDL + HD + LU + LL,
++	[0x28] = BDL + HV + LL,
++	[0x29] = BDL + HU + HL + LD,
++	[0x2a] = BDL + HD + HL + LU,
++	[0x2b] = BDL + HV + HL,
++	[0x2d] = BDL + HL + LD + LR,
++	[0x2e] = BDL + HR + LL + LD,
++	[0x2f] = BDL + HH + LD,
++	[0x30] = BDL + HD + LH,
++	[0x31] = BDL + HD + HL + LR,
++	[0x32] = BDL + HR + HD + LL,
++	[0x33] = BDL + HH + HD,
++	[0x35] = BDL + HL + LU + LR,
++	[0x36] = BDL + HR + LU + LL,
++	[0x37] = BDL + HH + LU,
++	[0x38] = BDL + HU + LH,
++	[0x39] = BDL + HU + HL + LR,
++	[0x3a] = BDL + HU + HR + LL,
++	[0x3b] = BDL + HH + HU,
++	[0x3d] = BDL + HL + LV + LR,
++	[0x3e] = BDL + HR + LV + LL,
++	[0x3f] = BDL + HH + LV,
++	[0x40] = BDL + HU + LH + LD,
++	[0x41] = BDL + HD + LH + LU,
++	[0x42] = BDL + HV + LH,
++	[0x43] = BDL + HU + HL + LD + LR,
++	[0x44] = BDL + HU + HR + LD + LL,
++	[0x45] = BDL + HD + HL + LU + LR,
++	[0x46] = BDL + HD + HR + LU + LL,
++	[0x47] = BDL + HH + HU + LD,
++	[0x48] = BDL + HH + HD + LU,
++	[0x49] = BDL + HV + HL + LR,
++	[0x4a] = BDL + HV + HR + LL,
++	[0x4b] = BDL + HV + HH,
++	[0x78] = BDL + HL,
++	[0x79] = BDL + HU,
++	[0x7a] = BDL + HR,
++	[0x7b] = BDL + HD,
++	[0x7c] = BDL + HR + LL,
++	[0x7d] = BDL + HD + LU,
++	[0x7e] = BDL + HL + LR,
++	[0x7f] = BDL + HU + LD,
++
++	/* double [+light] lines */
++	[0x50] = BDL + DH,
++	[0x51] = BDL + DV,
++	[0x52] = BDL + DR + LD,
++	[0x53] = BDL + DD + LR,
++	[0x54] = BDL + DR + DD,
++	[0x55] = BDL + DL + LD,
++	[0x56] = BDL + DD + LL,
++	[0x57] = BDL + DL + DD,
++	[0x58] = BDL + DR + LU,
++	[0x59] = BDL + DU + LR,
++	[0x5a] = BDL + DU + DR,
++	[0x5b] = BDL + DL + LU,
++	[0x5c] = BDL + DU + LL,
++	[0x5d] = BDL + DL + DU,
++	[0x5e] = BDL + DR + LV,
++	[0x5f] = BDL + DV + LR,
++	[0x60] = BDL + DV + DR,
++	[0x61] = BDL + DL + LV,
++	[0x62] = BDL + DV + LL,
++	[0x63] = BDL + DV + DL,
++	[0x64] = BDL + DH + LD,
++	[0x65] = BDL + DD + LH,
++	[0x66] = BDL + DD + DH,
++	[0x67] = BDL + DH + LU,
++	[0x68] = BDL + DU + LH,
++	[0x69] = BDL + DH + DU,
++	[0x6a] = BDL + DH + LV,
++	[0x6b] = BDL + DV + LH,
++	[0x6c] = BDL + DH + DV,
++
++	/* (light) arcs */
++	[0x6d] = BDA + LD + LR,
++	[0x6e] = BDA + LD + LL,
++	[0x6f] = BDA + LU + LL,
++	[0x70] = BDA + LU + LR,
++
++	/* Lower (Down) X/8 block (data is 8 - X) */
++	[0x81] = BBD + 7, [0x82] = BBD + 6, [0x83] = BBD + 5, [0x84] = BBD + 4,
++	[0x85] = BBD + 3, [0x86] = BBD + 2, [0x87] = BBD + 1, [0x88] = BBD + 0,
++
++	/* Left X/8 block (data is X) */
++	[0x89] = BBL + 7, [0x8a] = BBL + 6, [0x8b] = BBL + 5, [0x8c] = BBL + 4,
++	[0x8d] = BBL + 3, [0x8e] = BBL + 2, [0x8f] = BBL + 1,
++
++	/* upper 1/2 (4/8), 1/8 block (X), right 1/2, 1/8 block (8-X) */
++	[0x80] = BBU + 4, [0x94] = BBU + 1,
++	[0x90] = BBR + 4, [0x95] = BBR + 7,
++
++	/* Quadrants */
++	[0x96] = BBQ + BL,
++	[0x97] = BBQ + BR,
++	[0x98] = BBQ + TL,
++	[0x99] = BBQ + TL + BL + BR,
++	[0x9a] = BBQ + TL + BR,
++	[0x9b] = BBQ + TL + TR + BL,
++	[0x9c] = BBQ + TL + TR + BR,
++	[0x9d] = BBQ + TR,
++	[0x9e] = BBQ + BL + TR,
++	[0x9f] = BBQ + BL + TR + BR,
++
++	/* Shades, data is an alpha value in 25% units (1/4, 1/2, 3/4) */
++	[0x91] = BBS + 1, [0x92] = BBS + 2, [0x93] = BBS + 3,
++
++	/* U+2504 - U+250B, U+254C - U+254F: unsupported (dashes) */
++	/* U+2571 - U+2573: unsupported (diagonals) */
++};
+diff --git a/config.def.h b/config.def.h
+index 91ab8ca..6fb3bb6 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -67,6 +67,18 @@ static unsigned int blinktimeout = 800;
+  */
+ static unsigned int cursorthickness = 2;
+ 
++/*
++ * 1: render most of the lines/blocks characters without using the font for
++ *    perfect alignment between cells (U2500 - U259F except dashes/diagonals).
++ *    Bold affects lines thickness if boxdraw_bold is not 0. Italic is ignored.
++ * 0: disable (render all U25XX glyphs normally from the font).
++ */
++const int boxdraw = 1;
++const int boxdraw_bold = 1;
++
++/* braille (U28XX):  1: render as adjacent "pixels",  0: use font */
++const int boxdraw_braille = 0;
++
+ /*
+  * bell volume. It must be a value between -100 and 100. Use 0 for disabling
+  * it
+@@ -93,6 +105,11 @@ char *termname = "st-256color";
+  */
+ unsigned int tabspaces = 8;
+ 
++/* bg opacity */
++float alpha = 0.9;
++float alpha2 = 1.0;
++float alpha3 = 0.9;
++
+ /* Terminal colors (16 first used in escape sequence) */
+ static const char *colorname[] = {
+ 	/* 8 normal colors */
+@@ -135,13 +152,20 @@ unsigned int defaultcs = 256;
+ static unsigned int defaultrcs = 257;
+ 
+ /*
+- * Default shape of cursor
+- * 2: Block ("█")
+- * 4: Underline ("_")
+- * 6: Bar ("|")
+- * 7: Snowman ("☃")
++ * https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h4-Functions-using-CSI-_-ordered-by-the-final-character-lparen-s-rparen:CSI-Ps-SP-q.1D81
++ * Default style of cursor
++ * 0: blinking block
++ * 1: blinking block (default)
++ * 2: steady block ("█")
++ * 3: blinking underline
++ * 4: steady underline ("_")
++ * 5: blinking bar
++ * 6: steady bar ("|")
++ * 7: blinking st cursor
++ * 8: steady st cursor
+  */
+-static unsigned int cursorshape = 2;
++static unsigned int cursorstyle = 1;
++static Rune stcursor = 0x2603; /* snowman ("☃") */
+ 
+ /*
+  * Default columns and rows numbers
+@@ -170,16 +194,56 @@ static unsigned int defaultattr = 11;
+  */
+ static uint forcemousemod = ShiftMask;
+ 
++/*
++ * Xresources preferences to load at startup
++ */
++ResourcePref resources[] = {
++		{ "font",         STRING,  &font },
++		{ "color0",       STRING,  &colorname[0] },
++		{ "color1",       STRING,  &colorname[1] },
++		{ "color2",       STRING,  &colorname[2] },
++		{ "color3",       STRING,  &colorname[3] },
++		{ "color4",       STRING,  &colorname[4] },
++		{ "color5",       STRING,  &colorname[5] },
++		{ "color6",       STRING,  &colorname[6] },
++		{ "color7",       STRING,  &colorname[7] },
++		{ "color8",       STRING,  &colorname[8] },
++		{ "color9",       STRING,  &colorname[9] },
++		{ "color10",      STRING,  &colorname[10] },
++		{ "color11",      STRING,  &colorname[11] },
++		{ "color12",      STRING,  &colorname[12] },
++		{ "color13",      STRING,  &colorname[13] },
++		{ "color14",      STRING,  &colorname[14] },
++		{ "color15",      STRING,  &colorname[15] },
++		{ "background",   STRING,  &colorname[259] },
++		{ "foreground",   STRING,  &colorname[258] },
++		{ "cursorColor",  STRING,  &colorname[256] },
++		{ "termname",     STRING,  &termname },
++		{ "shell",        STRING,  &shell },
++		{ "minlatency",   INTEGER, &minlatency },
++		{ "maxlatency",   INTEGER, &maxlatency },
++		{ "blinktimeout", INTEGER, &blinktimeout },
++		{ "bellvolume",   INTEGER, &bellvolume },
++		{ "tabspaces",    INTEGER, &tabspaces },
++		{ "borderpx",     INTEGER, &borderpx },
++		{ "cwscale",      FLOAT,   &cwscale },
++		{ "chscale",      FLOAT,   &chscale },
++		{ "opacity",      FLOAT,   &alpha },
++		{ "opacity",      FLOAT,   &alpha3 },
++		{ "termcol",      INTEGER,   &cols },
++		{ "termrow",      INTEGER,   &rows },
++};
++
+ /*
+  * Internal mouse shortcuts.
+  * Beware that overloading Button1 will disable the selection.
+  */
+ static MouseShortcut mshortcuts[] = {
+ 	/* mask                 button   function        argument       release */
+-	{ XK_ANY_MOD,           Button2, selpaste,       {.i = 0},      1 },
+-	{ ShiftMask,            Button4, ttysend,        {.s = "\033[5;2~"} },
++	{ ShiftMask,            Button4, kscrollup,      {.i = 1} },
++	{ ShiftMask,            Button5, kscrolldown,    {.i = 1} },
++	{ XK_ANY_MOD,           Button2, clippaste,       {.i = 0},      1 },
+ 	{ XK_ANY_MOD,           Button4, ttysend,        {.s = "\031"} },
+-	{ ShiftMask,            Button5, ttysend,        {.s = "\033[6;2~"} },
+ 	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
+ };
+ 
+@@ -198,9 +262,19 @@ static Shortcut shortcuts[] = {
+ 	{ TERMMOD,              XK_Home,        zoomreset,      {.f =  0} },
+ 	{ TERMMOD,              XK_C,           clipcopy,       {.i =  0} },
+ 	{ TERMMOD,              XK_V,           clippaste,      {.i =  0} },
+-	{ TERMMOD,              XK_Y,           selpaste,       {.i =  0} },
+-	{ ShiftMask,            XK_Insert,      selpaste,       {.i =  0} },
++	{ TERMMOD,              XK_Y,           clippaste,       {.i =  0} },
++	{ ShiftMask,            XK_Insert,      clippaste,       {.i =  0} },
+ 	{ TERMMOD,              XK_Num_Lock,    numlock,        {.i =  0} },
++	{ ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
++	{ ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
++	{ MODKEY,              XK_Escape,      keyboard_select,{.i =  0} },
++	{ ShiftMask,           XK_F5,          swapalpha,     {.i =  0} },
++	{ ControlMask, 			XK_Up,          zoom,           {.f = +1} },
++	{ ControlMask, 			XK_Down,        zoom,           {.f = -1} },
++	{ MODKEY|ShiftMask,		XK_K,  		    zoom,           {.f = +1} },
++	{ MODKEY|ShiftMask,		XK_J, 	        zoom,           {.f = -1} },
++	{ MODKEY,          		XK_k,  			kscrollup,      {.i =  1} },
++	{ MODKEY,          		XK_j,   		kscrolldown,    {.i =  1} },
+ };
+ 
+ /*
+diff --git a/config.mk b/config.mk
+index 4c4c5d5..0114bad 100644
+--- a/config.mk
++++ b/config.mk
+@@ -16,7 +16,7 @@ PKG_CONFIG = pkg-config
+ INCS = -I$(X11INC) \
+        `$(PKG_CONFIG) --cflags fontconfig` \
+        `$(PKG_CONFIG) --cflags freetype2`
+-LIBS = -L$(X11LIB) -lm -lrt -lX11 -lutil -lXft \
++LIBS = -L$(X11LIB) -lm -lrt -lX11 -lutil -lXft -lXrender\
+        `$(PKG_CONFIG) --libs fontconfig` \
+        `$(PKG_CONFIG) --libs freetype2`
+ 
+diff --git a/st.c b/st.c
+index 51049ba..adadb47 100644
+--- a/st.c
++++ b/st.c
+@@ -16,6 +16,8 @@
+ #include <termios.h>
+ #include <unistd.h>
+ #include <wchar.h>
++#include <X11/keysym.h>
++#include <X11/X.h>
+ 
+ #include "st.h"
+ #include "win.h"
+@@ -35,6 +37,7 @@
+ #define ESC_ARG_SIZ   16
+ #define STR_BUF_SIZ   ESC_BUF_SIZ
+ #define STR_ARG_SIZ   ESC_ARG_SIZ
++#define HISTSIZE      2000
+ 
+ /* macros */
+ #define IS_SET(flag)		((term.mode & (flag)) != 0)
+@@ -42,6 +45,9 @@
+ #define ISCONTROLC1(c)		(BETWEEN(c, 0x80, 0x9f))
+ #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
+ #define ISDELIM(u)		(u && wcschr(worddelimiters, u))
++#define TLINE(y)		((y) < term.scr ? term.hist[((y) + term.histi - \
++				term.scr + HISTSIZE + 1) % HISTSIZE] : \
++				term.line[(y) - term.scr])
+ 
+ enum term_mode {
+ 	MODE_WRAP        = 1 << 0,
+@@ -115,6 +121,9 @@ typedef struct {
+ 	int col;      /* nb col */
+ 	Line *line;   /* screen */
+ 	Line *alt;    /* alternate screen */
++	Line hist[HISTSIZE]; /* history buffer */
++	int histi;    /* history index */
++	int scr;      /* scroll back */
+ 	int *dirty;   /* dirtyness of lines */
+ 	TCursor c;    /* cursor */
+ 	int ocx;      /* old cursor col */
+@@ -184,8 +193,8 @@ static void tnewline(int);
+ static void tputtab(int);
+ static void tputc(Rune);
+ static void treset(void);
+-static void tscrollup(int, int);
+-static void tscrolldown(int, int);
++static void tscrollup(int, int, int);
++static void tscrolldown(int, int, int);
+ static void tsetattr(const int *, int);
+ static void tsetchar(Rune, const Glyph *, int, int);
+ static void tsetdirt(int, int);
+@@ -416,10 +425,10 @@ tlinelen(int y)
+ {
+ 	int i = term.col;
+ 
+-	if (term.line[y][i - 1].mode & ATTR_WRAP)
++	if (TLINE(y)[i - 1].mode & ATTR_WRAP)
+ 		return i;
+ 
+-	while (i > 0 && term.line[y][i - 1].u == ' ')
++	while (i > 0 && TLINE(y)[i - 1].u == ' ')
+ 		--i;
+ 
+ 	return i;
+@@ -528,7 +537,7 @@ selsnap(int *x, int *y, int direction)
+ 		 * Snap around if the word wraps around at the end or
+ 		 * beginning of a line.
+ 		 */
+-		prevgp = &term.line[*y][*x];
++		prevgp = &TLINE(*y)[*x];
+ 		prevdelim = ISDELIM(prevgp->u);
+ 		for (;;) {
+ 			newx = *x + direction;
+@@ -543,14 +552,14 @@ selsnap(int *x, int *y, int direction)
+ 					yt = *y, xt = *x;
+ 				else
+ 					yt = newy, xt = newx;
+-				if (!(term.line[yt][xt].mode & ATTR_WRAP))
++				if (!(TLINE(yt)[xt].mode & ATTR_WRAP))
+ 					break;
+ 			}
+ 
+ 			if (newx >= tlinelen(newy))
+ 				break;
+ 
+-			gp = &term.line[newy][newx];
++			gp = &TLINE(newy)[newx];
+ 			delim = ISDELIM(gp->u);
+ 			if (!(gp->mode & ATTR_WDUMMY) && (delim != prevdelim
+ 					|| (delim && gp->u != prevgp->u)))
+@@ -571,14 +580,14 @@ selsnap(int *x, int *y, int direction)
+ 		*x = (direction < 0) ? 0 : term.col - 1;
+ 		if (direction < 0) {
+ 			for (; *y > 0; *y += direction) {
+-				if (!(term.line[*y-1][term.col-1].mode
++				if (!(TLINE(*y-1)[term.col-1].mode
+ 						& ATTR_WRAP)) {
+ 					break;
+ 				}
+ 			}
+ 		} else if (direction > 0) {
+ 			for (; *y < term.row-1; *y += direction) {
+-				if (!(term.line[*y][term.col-1].mode
++				if (!(TLINE(*y)[term.col-1].mode
+ 						& ATTR_WRAP)) {
+ 					break;
+ 				}
+@@ -609,13 +618,13 @@ getsel(void)
+ 		}
+ 
+ 		if (sel.type == SEL_RECTANGULAR) {
+-			gp = &term.line[y][sel.nb.x];
++			gp = &TLINE(y)[sel.nb.x];
+ 			lastx = sel.ne.x;
+ 		} else {
+-			gp = &term.line[y][sel.nb.y == y ? sel.nb.x : 0];
++			gp = &TLINE(y)[sel.nb.y == y ? sel.nb.x : 0];
+ 			lastx = (sel.ne.y == y) ? sel.ne.x : term.col-1;
+ 		}
+-		last = &term.line[y][MIN(lastx, linelen-1)];
++		last = &TLINE(y)[MIN(lastx, linelen-1)];
+ 		while (last >= gp && last->u == ' ')
+ 			--last;
+ 
+@@ -851,6 +860,9 @@ void
+ ttywrite(const char *s, size_t n, int may_echo)
+ {
+ 	const char *next;
++	Arg arg = (Arg) { .i = term.scr };
++
++	kscrolldown(&arg);
+ 
+ 	if (may_echo && IS_SET(MODE_ECHO))
+ 		twrite(s, n, 1);
+@@ -1062,13 +1074,53 @@ tswapscreen(void)
+ }
+ 
+ void
+-tscrolldown(int orig, int n)
++kscrolldown(const Arg* a)
++{
++	int n = a->i;
++
++	if (n < 0)
++		n = term.row + n;
++
++	if (n > term.scr)
++		n = term.scr;
++
++	if (term.scr > 0) {
++		term.scr -= n;
++		selscroll(0, -n);
++		tfulldirt();
++	}
++}
++
++void
++kscrollup(const Arg* a)
++{
++	int n = a->i;
++
++	if (n < 0)
++		n = term.row + n;
++
++	if (term.scr <= HISTSIZE-n) {
++		term.scr += n;
++		selscroll(0, n);
++		tfulldirt();
++	}
++}
++
++void
++tscrolldown(int orig, int n, int copyhist)
+ {
+ 	int i;
+ 	Line temp;
+ 
+ 	LIMIT(n, 0, term.bot-orig+1);
+ 
++	if (copyhist) {
++		term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
++		temp = term.hist[term.histi];
++		term.hist[term.histi] = term.line[term.bot];
++		term.line[term.bot] = temp;
++	}
++
+ 	tsetdirt(orig, term.bot-n);
+ 	tclearregion(0, term.bot-n+1, term.col-1, term.bot);
+ 
+@@ -1078,17 +1130,28 @@ tscrolldown(int orig, int n)
+ 		term.line[i-n] = temp;
+ 	}
+ 
+-	selscroll(orig, n);
++	if (term.scr == 0)
++		selscroll(orig, n);
+ }
+ 
+ void
+-tscrollup(int orig, int n)
++tscrollup(int orig, int n, int copyhist)
+ {
+ 	int i;
+ 	Line temp;
+ 
+ 	LIMIT(n, 0, term.bot-orig+1);
+ 
++	if (copyhist) {
++		term.histi = (term.histi + 1) % HISTSIZE;
++		temp = term.hist[term.histi];
++		term.hist[term.histi] = term.line[orig];
++		term.line[orig] = temp;
++	}
++
++	if (term.scr > 0 && term.scr < HISTSIZE)
++		term.scr = MIN(term.scr + n, HISTSIZE-1);
++
+ 	tclearregion(0, orig, term.col-1, orig+n-1);
+ 	tsetdirt(orig+n, term.bot);
+ 
+@@ -1098,7 +1161,8 @@ tscrollup(int orig, int n)
+ 		term.line[i+n] = temp;
+ 	}
+ 
+-	selscroll(orig, -n);
++	if (term.scr == 0)
++		selscroll(orig, -n);
+ }
+ 
+ void
+@@ -1127,7 +1191,7 @@ tnewline(int first_col)
+ 	int y = term.c.y;
+ 
+ 	if (y == term.bot) {
+-		tscrollup(term.top, 1);
++		tscrollup(term.top, 1, 1);
+ 	} else {
+ 		y++;
+ 	}
+@@ -1222,6 +1286,9 @@ tsetchar(Rune u, const Glyph *attr, int x, int y)
+ 	term.dirty[y] = 1;
+ 	term.line[y][x] = *attr;
+ 	term.line[y][x].u = u;
++
++	if (isboxdraw(u))
++		term.line[y][x].mode |= ATTR_BOXDRAW;
+ }
+ 
+ void
+@@ -1292,14 +1359,14 @@ void
+ tinsertblankline(int n)
+ {
+ 	if (BETWEEN(term.c.y, term.top, term.bot))
+-		tscrolldown(term.c.y, n);
++		tscrolldown(term.c.y, n, 0);
+ }
+ 
+ void
+ tdeleteline(int n)
+ {
+ 	if (BETWEEN(term.c.y, term.top, term.bot))
+-		tscrollup(term.c.y, n);
++		tscrollup(term.c.y, n, 0);
+ }
+ 
+ int32_t
+@@ -1736,11 +1803,11 @@ csihandle(void)
+ 		break;
+ 	case 'S': /* SU -- Scroll <n> line up */
+ 		DEFAULT(csiescseq.arg[0], 1);
+-		tscrollup(term.top, csiescseq.arg[0]);
++		tscrollup(term.top, csiescseq.arg[0], 0);
+ 		break;
+ 	case 'T': /* SD -- Scroll <n> line down */
+ 		DEFAULT(csiescseq.arg[0], 1);
+-		tscrolldown(term.top, csiescseq.arg[0]);
++		tscrolldown(term.top, csiescseq.arg[0], 0);
+ 		break;
+ 	case 'L': /* IL -- Insert <n> blank lines */
+ 		DEFAULT(csiescseq.arg[0], 1);
+@@ -2330,7 +2397,7 @@ eschandle(uchar ascii)
+ 		return 0;
+ 	case 'D': /* IND -- Linefeed */
+ 		if (term.c.y == term.bot) {
+-			tscrollup(term.top, 1);
++			tscrollup(term.top, 1, 1);
+ 		} else {
+ 			tmoveto(term.c.x, term.c.y+1);
+ 		}
+@@ -2343,7 +2410,7 @@ eschandle(uchar ascii)
+ 		break;
+ 	case 'M': /* RI -- Reverse index */
+ 		if (term.c.y == term.top) {
+-			tscrolldown(term.top, 1);
++			tscrolldown(term.top, 1, 1);
+ 		} else {
+ 			tmoveto(term.c.x, term.c.y-1);
+ 		}
+@@ -2557,12 +2624,15 @@ twrite(const char *buf, int buflen, int show_ctrl)
+ void
+ tresize(int col, int row)
+ {
+-	int i;
++	int i, j;
+ 	int minrow = MIN(row, term.row);
+ 	int mincol = MIN(col, term.col);
+ 	int *bp;
+ 	TCursor c;
+ 
++	if ( row < term.row  || col < term.col )
++		toggle_winmode(trt_kbdselect(XK_Escape, NULL, 0));
++
+ 	if (col < 1 || row < 1) {
+ 		fprintf(stderr,
+ 		        "tresize: error resizing to %dx%d\n", col, row);
+@@ -2594,6 +2664,14 @@ tresize(int col, int row)
+ 	term.dirty = xrealloc(term.dirty, row * sizeof(*term.dirty));
+ 	term.tabs = xrealloc(term.tabs, col * sizeof(*term.tabs));
+ 
++	for (i = 0; i < HISTSIZE; i++) {
++		term.hist[i] = xrealloc(term.hist[i], col * sizeof(Glyph));
++		for (j = mincol; j < col; j++) {
++			term.hist[i][j] = term.c.attr;
++			term.hist[i][j].u = ' ';
++		}
++	}
++
+ 	/* resize each row to new width, zero-pad if needed */
+ 	for (i = 0; i < minrow; i++) {
+ 		term.line[i] = xrealloc(term.line[i], col * sizeof(Glyph));
+@@ -2652,7 +2730,7 @@ drawregion(int x1, int y1, int x2, int y2)
+ 			continue;
+ 
+ 		term.dirty[y] = 0;
+-		xdrawline(term.line[y], x1, y, x2);
++		xdrawline(TLINE(y), x1, y, x2);
+ 	}
+ }
+ 
+@@ -2673,8 +2751,9 @@ draw(void)
+ 		cx--;
+ 
+ 	drawregion(0, 0, term.col, term.row);
+-	xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
+-			term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
++	if (term.scr == 0)
++		xdrawcursor(cx, term.c.y, term.line[term.c.y][cx],
++				term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
+ 	term.ocx = cx;
+ 	term.ocy = term.c.y;
+ 	xfinishdraw();
+@@ -2688,3 +2767,220 @@ redraw(void)
+ 	tfulldirt();
+ 	draw();
+ }
++
++void set_notifmode(int type, KeySym ksym) {
++	static char *lib[] = { " MOVE ", " SEL  "};
++	static Glyph *g, *deb, *fin;
++	static int col, bot;
++
++	if ( ksym == -1 ) {
++		free(g);
++		col = term.col, bot = term.bot;
++		g = xmalloc(col * sizeof(Glyph));
++		memcpy(g, term.line[bot], col * sizeof(Glyph));
++
++	}
++	else if ( ksym == -2 )
++		memcpy(term.line[bot], g, col * sizeof(Glyph));
++
++	if ( type < 2 ) {
++		char *z = lib[type];
++		for (deb = &term.line[bot][col - 6], fin = &term.line[bot][col]; deb < fin; z++, deb++)
++			deb->mode = ATTR_REVERSE,
++				deb->u = *z,
++				deb->fg = defaultfg, deb->bg = defaultbg;
++	}
++	else if ( type < 5 )
++		memcpy(term.line[bot], g, col * sizeof(Glyph));
++	else {
++		for (deb = &term.line[bot][0], fin = &term.line[bot][col]; deb < fin; deb++)
++			deb->mode = ATTR_REVERSE,
++				deb->u = ' ',
++				deb->fg = defaultfg, deb->bg = defaultbg;
++		term.line[bot][0].u = ksym;
++	}
++
++	term.dirty[bot] = 1;
++	drawregion(0, bot, col, bot + 1);
++}
++
++void select_or_drawcursor(int selectsearch_mode, int type) {
++	int done = 0;
++
++	if ( selectsearch_mode & 1 ) {
++		selextend(term.c.x, term.c.y, type, done);
++		xsetsel(getsel());
++	}
++	else
++		xdrawcursor(term.c.x, term.c.y, term.line[term.c.y][term.c.x],
++			    term.ocx, term.ocy, term.line[term.ocy][term.ocx]);
++}
++
++void search(int selectsearch_mode, Rune *target, int ptarget, int incr, int type, TCursor *cu) {
++	Rune *r;
++	int i, bound = (term.col * cu->y + cu->x) * (incr > 0) + incr;
++
++	for (i = term.col * term.c.y + term.c.x + incr; i != bound; i += incr) {
++		for (r = target; r - target < ptarget; r++) {
++			if ( *r == term.line[(i + r - target) / term.col][(i + r - target) % term.col].u ) {
++				if ( r - target == ptarget - 1 )     break;
++			} else {
++				r = NULL;
++				break;
++			}
++		}
++		if ( r != NULL )    break;
++	}
++
++	if ( i != bound ) {
++		term.c.y = i / term.col, term.c.x = i % term.col;
++		select_or_drawcursor(selectsearch_mode, type);
++	}
++}
++
++int trt_kbdselect(KeySym ksym, char *buf, int len) {
++	static TCursor cu;
++	static Rune target[64];
++	static int type = 1, ptarget, in_use;
++	static int sens, quant;
++	static char selectsearch_mode;
++	int i, bound, *xy;
++
++
++	if ( selectsearch_mode & 2 ) {
++		if ( ksym == XK_Return ) {
++			selectsearch_mode ^= 2;
++			set_notifmode(selectsearch_mode, -2);
++			if ( ksym == XK_Escape )    ptarget = 0;
++			return 0;
++		}
++		else if ( ksym == XK_BackSpace ) {
++			if ( !ptarget )     return 0;
++			term.line[term.bot][ptarget--].u = ' ';
++		}
++		else if ( len < 1 ) {
++			return 0;
++		}
++		else if ( ptarget == term.col  || ksym == XK_Escape ) {
++			return 0;
++		}
++		else {
++			utf8decode(buf, &target[ptarget++], len);
++			term.line[term.bot][ptarget].u = target[ptarget - 1];
++		}
++
++		if ( ksym != XK_BackSpace )
++			search(selectsearch_mode, &target[0], ptarget, sens, type, &cu);
++
++		term.dirty[term.bot] = 1;
++		drawregion(0, term.bot, term.col, term.bot + 1);
++		return 0;
++	}
++
++	switch ( ksym ) {
++	case -1 :
++		in_use = 1;
++		cu.x = term.c.x, cu.y = term.c.y;
++		set_notifmode(0, ksym);
++		return MODE_KBDSELECT;
++	case XK_s :
++		if ( selectsearch_mode & 1 )
++			selclear();
++		else
++			selstart(term.c.x, term.c.y, 0);
++		set_notifmode(selectsearch_mode ^= 1, ksym);
++		break;
++	case XK_t :
++		selextend(term.c.x, term.c.y, type ^= 3, i = 0);  /* 2 fois */
++		selextend(term.c.x, term.c.y, type, i = 0);
++		break;
++	case XK_slash :
++	case XK_KP_Divide :
++	case XK_question :
++		ksym &= XK_question;                /* Divide to slash */
++		sens = (ksym == XK_slash) ? -1 : 1;
++		ptarget = 0;
++		set_notifmode(15, ksym);
++		selectsearch_mode ^= 2;
++		break;
++	case XK_Escape :
++		if ( !in_use )  break;
++		selclear();
++	case XK_Return :
++		set_notifmode(4, ksym);
++		term.c.x = cu.x, term.c.y = cu.y;
++		select_or_drawcursor(selectsearch_mode = 0, type);
++		in_use = quant = 0;
++		return MODE_KBDSELECT;
++	case XK_n :
++	case XK_N :
++		if ( ptarget )
++			search(selectsearch_mode, &target[0], ptarget, (ksym == XK_n) ? -1 : 1, type, &cu);
++		break;
++	case XK_BackSpace :
++		term.c.x = 0;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	case XK_dollar :
++		term.c.x = term.col - 1;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	case XK_Home :
++		term.c.x = 0, term.c.y = 0;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	case XK_End :
++		term.c.x = cu.x, term.c.y = cu.y;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	case XK_Page_Up :
++	case XK_Page_Down :
++		term.c.y = (ksym == XK_Prior ) ? 0 : cu.y;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	case XK_exclam :
++		term.c.x = term.col >> 1;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	case XK_asterisk :
++	case XK_KP_Multiply :
++		term.c.x = term.col >> 1;
++	case XK_underscore :
++		term.c.y = cu.y >> 1;
++		select_or_drawcursor(selectsearch_mode, type);
++		break;
++	default :
++		if ( ksym >= XK_0 && ksym <= XK_9 ) {               /* 0-9 keyboard */
++			quant = (quant * 10) + (ksym ^ XK_0);
++			return 0;
++		}
++		else if ( ksym >= XK_KP_0 && ksym <= XK_KP_9 ) {    /* 0-9 numpad */
++			quant = (quant * 10) + (ksym ^ XK_KP_0);
++			return 0;
++		}
++		else if ( ksym == XK_k || ksym == XK_h )
++			i = ksym & 1;
++		else if ( ksym == XK_l || ksym == XK_j )
++			i = ((ksym & 6) | 4) >> 1;
++		else if ( (XK_Home & ksym) != XK_Home || (i = (ksym ^ XK_Home) - 1) > 3 )
++			break;
++
++		xy = (i & 1) ? &term.c.y : &term.c.x;
++		sens = (i & 2) ? 1 : -1;
++		bound = (i >> 1 ^ 1) ? 0 : (i ^ 3) ? term.col - 1 : term.bot;
++
++		if ( quant == 0 )
++			quant++;
++
++		if ( *xy == bound && ((sens < 0 && bound == 0) || (sens > 0 && bound > 0)) )
++			break;
++
++		*xy += quant * sens;
++		if ( *xy < 0 || ( bound > 0 && *xy > bound) )
++			*xy = bound;
++
++		select_or_drawcursor(selectsearch_mode, type);
++	}
++	quant = 0;
++	return 0;
++}
+diff --git a/st.h b/st.h
+index 519b9bd..4d625f1 100644
+--- a/st.h
++++ b/st.h
+@@ -33,6 +33,7 @@ enum glyph_attribute {
+ 	ATTR_WRAP       = 1 << 8,
+ 	ATTR_WIDE       = 1 << 9,
+ 	ATTR_WDUMMY     = 1 << 10,
++	ATTR_BOXDRAW    = 1 << 11,
+ 	ATTR_BOLD_FAINT = ATTR_BOLD | ATTR_FAINT,
+ };
+ 
+@@ -81,6 +82,8 @@ void die(const char *, ...);
+ void redraw(void);
+ void draw(void);
+ 
++void kscrolldown(const Arg *);
++void kscrollup(const Arg *);
+ void printscreen(const Arg *);
+ void printsel(const Arg *);
+ void sendbreak(const Arg *);
+@@ -110,9 +113,18 @@ size_t utf8encode(Rune, char *);
+ void *xmalloc(size_t);
+ void *xrealloc(void *, size_t);
+ char *xstrdup(const char *);
++int  trt_kbdselect(KeySym, char *, int);
+ 
+ int xgetcolor(int x, unsigned char *r, unsigned char *g, unsigned char *b);
+ 
++int isboxdraw(Rune);
++ushort boxdrawindex(const Glyph *);
++#ifdef XFT_VERSION
++/* only exposed to x.c, otherwise we'll need Xft.h for the types */
++void boxdraw_xinit(Display *, Colormap, XftDraw *, Visual *);
++void drawboxes(int, int, int, int, XftColor *, XftColor *, const XftGlyphFontSpec *, int);
++#endif
++
+ /* config.h globals */
+ extern char *utmp;
+ extern char *scroll;
+@@ -126,3 +138,5 @@ extern unsigned int tabspaces;
+ extern unsigned int defaultfg;
+ extern unsigned int defaultbg;
+ extern unsigned int defaultcs;
++extern float alpha;
++extern const int boxdraw, boxdraw_bold, boxdraw_braille;
+diff --git a/win.h b/win.h
+index e6e4369..4916347 100644
+--- a/win.h
++++ b/win.h
+@@ -21,6 +21,7 @@ enum win_mode {
+ 	MODE_NUMLOCK     = 1 << 17,
+ 	MODE_MOUSE       = MODE_MOUSEBTN|MODE_MOUSEMOTION|MODE_MOUSEX10\
+ 	                  |MODE_MOUSEMANY,
++	MODE_KBDSELECT   = 1 << 18,
+ };
+ 
+ void xbell(void);
+@@ -37,4 +38,6 @@ void xsetmode(int, unsigned int);
+ void xsetpointermotion(int);
+ void xsetsel(char *);
+ int xstartdraw(void);
++void toggle_winmode(int);
++void keyboard_select(const Arg *);
+ void xximspot(int, int);
+diff --git a/x.c b/x.c
+index 8a16faa..38f4443 100644
+--- a/x.c
++++ b/x.c
+@@ -14,6 +14,7 @@
+ #include <X11/keysym.h>
+ #include <X11/Xft/Xft.h>
+ #include <X11/XKBlib.h>
++#include <X11/Xresource.h>
+ 
+ char *argv0;
+ #include "arg.h"
+@@ -45,6 +46,19 @@ typedef struct {
+ 	signed char appcursor; /* application cursor */
+ } Key;
+ 
++/* Xresources preferences */
++enum resource_type {
++	STRING = 0,
++	INTEGER = 1,
++	FLOAT = 2
++};
++
++typedef struct {
++	char *name;
++	enum resource_type type;
++	void *dst;
++} ResourcePref;
++
+ /* X modifiers */
+ #define XK_ANY_MOD    UINT_MAX
+ #define XK_NO_MOD     0
+@@ -59,6 +73,7 @@ static void zoom(const Arg *);
+ static void zoomabs(const Arg *);
+ static void zoomreset(const Arg *);
+ static void ttysend(const Arg *);
++static void swapalpha(const Arg *);
+ 
+ /* config.h for applying patches and the configuration. */
+ #include "config.h"
+@@ -105,6 +120,7 @@ typedef struct {
+ 	XSetWindowAttributes attrs;
+ 	int scr;
+ 	int isfixed; /* is fixed geometry? */
++	int depth; /* bit depth */
+ 	int l, t; /* left and top offset */
+ 	int gm; /* geometry mask */
+ } XWindow;
+@@ -243,6 +259,7 @@ static char *usedfont = NULL;
+ static double usedfontsize = 0;
+ static double defaultfontsize = 0;
+ 
++static char *opt_alpha = NULL;
+ static char *opt_class = NULL;
+ static char **opt_cmd  = NULL;
+ static char *opt_embed = NULL;
+@@ -253,6 +270,7 @@ static char *opt_name  = NULL;
+ static char *opt_title = NULL;
+ 
+ static int oldbutton = 3; /* button event on startup: 3 = release */
++static int cursorblinks = 0;
+ 
+ void
+ clipcopy(const Arg *dummy)
+@@ -292,6 +310,15 @@ numlock(const Arg *dummy)
+ 	win.mode ^= MODE_NUMLOCK;
+ }
+ 
++void
++swapalpha(const Arg *dummy)
++{
++	alpha = (alpha == alpha2) ? alpha3 : alpha2;
++	xloadcols();
++	xsetcursor(cursorstyle);
++	redraw();
++}
++
+ void
+ zoom(const Arg *arg)
+ {
+@@ -675,6 +702,7 @@ setsel(char *str, Time t)
+ 	XSetSelectionOwner(xw.dpy, XA_PRIMARY, xw.win, t);
+ 	if (XGetSelectionOwner(xw.dpy, XA_PRIMARY) != xw.win)
+ 		selclear();
++	clipcopy(NULL);
+ }
+ 
+ void
+@@ -736,7 +764,7 @@ xresize(int col, int row)
+ 
+ 	XFreePixmap(xw.dpy, xw.buf);
+ 	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
+-			DefaultDepth(xw.dpy, xw.scr));
+++			xw.depth);
+ 	XftDrawChange(xw.draw, xw.buf);
+ 	xclear(0, 0, win.w, win.h);
+ 
+@@ -796,6 +824,13 @@ xloadcols(void)
+ 			else
+ 				die("could not allocate color %d\n", i);
+ 		}
++
++	/* set alpha value of bg color */
++	if (opt_alpha)
++		alpha = strtof(opt_alpha, NULL);
++	dc.col[defaultbg].color.alpha = (unsigned short)(0xffff * alpha);
++	dc.col[defaultbg].pixel &= 0x00FFFFFF;
++	dc.col[defaultbg].pixel |= (unsigned char)(0xff * alpha) << 24;
+ 	loaded = 1;
+ }
+ 
+@@ -843,8 +878,8 @@ xclear(int x1, int y1, int x2, int y2)
+ void
+ xhints(void)
+ {
+-	XClassHint class = {opt_name ? opt_name : termname,
+-	                    opt_class ? opt_class : termname};
++	XClassHint class = {opt_name ? opt_name : "st",
++	                    opt_class ? opt_class : "St"};
+ 	XWMHints wm = {.flags = InputHint, .input = 1};
+ 	XSizeHints *sizeh;
+ 
+@@ -1118,11 +1153,21 @@ xinit(int cols, int rows)
+ 	Window parent;
+ 	pid_t thispid = getpid();
+ 	XColor xmousefg, xmousebg;
++	XWindowAttributes attr;
++	XVisualInfo vis;
+ 
+-	if (!(xw.dpy = XOpenDisplay(NULL)))
+-		die("can't open display\n");
+ 	xw.scr = XDefaultScreen(xw.dpy);
+-	xw.vis = XDefaultVisual(xw.dpy, xw.scr);
++
++	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0)))) {
++		parent = XRootWindow(xw.dpy, xw.scr);
++		xw.depth = 32;
++	} else {
++		XGetWindowAttributes(xw.dpy, parent, &attr);
++		xw.depth = attr.depth;
++	}
++
++	XMatchVisualInfo(xw.dpy, xw.scr, xw.depth, TrueColor, &vis);
++	xw.vis = vis.visual;
+ 
+ 	/* font */
+ 	if (!FcInit())
+@@ -1132,7 +1177,7 @@ xinit(int cols, int rows)
+ 	xloadfonts(usedfont, 0);
+ 
+ 	/* colors */
+-	xw.cmap = XDefaultColormap(xw.dpy, xw.scr);
++	xw.cmap = XCreateColormap(xw.dpy, parent, xw.vis, None);
+ 	xloadcols();
+ 
+ 	/* adjust fixed window geometry */
+@@ -1152,19 +1197,15 @@ xinit(int cols, int rows)
+ 		| ButtonMotionMask | ButtonPressMask | ButtonReleaseMask;
+ 	xw.attrs.colormap = xw.cmap;
+ 
+-	if (!(opt_embed && (parent = strtol(opt_embed, NULL, 0))))
+-		parent = XRootWindow(xw.dpy, xw.scr);
+ 	xw.win = XCreateWindow(xw.dpy, parent, xw.l, xw.t,
+-			win.w, win.h, 0, XDefaultDepth(xw.dpy, xw.scr), InputOutput,
++			win.w, win.h, 0, xw.depth, InputOutput,
+ 			xw.vis, CWBackPixel | CWBorderPixel | CWBitGravity
+ 			| CWEventMask | CWColormap, &xw.attrs);
+ 
+ 	memset(&gcvalues, 0, sizeof(gcvalues));
+ 	gcvalues.graphics_exposures = False;
+-	dc.gc = XCreateGC(xw.dpy, parent, GCGraphicsExposures,
+-			&gcvalues);
+-	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h,
+-			DefaultDepth(xw.dpy, xw.scr));
++	xw.buf = XCreatePixmap(xw.dpy, xw.win, win.w, win.h, xw.depth);
++	dc.gc = XCreateGC(xw.dpy, xw.buf, GCGraphicsExposures, &gcvalues);
+ 	XSetForeground(xw.dpy, dc.gc, dc.col[defaultbg].pixel);
+ 	XFillRectangle(xw.dpy, xw.buf, dc.gc, 0, 0, win.w, win.h);
+ 
+@@ -1221,6 +1262,8 @@ xinit(int cols, int rows)
+ 	xsel.xtarget = XInternAtom(xw.dpy, "UTF8_STRING", 0);
+ 	if (xsel.xtarget == None)
+ 		xsel.xtarget = XA_STRING;
++
++	boxdraw_xinit(xw.dpy, xw.cmap, xw.draw, xw.vis);
+ }
+ 
+ int
+@@ -1267,8 +1310,13 @@ xmakeglyphfontspecs(XftGlyphFontSpec *specs, const Glyph *glyphs, int len, int x
+ 			yp = winy + font->ascent;
+ 		}
+ 
+-		/* Lookup character index with default font. */
+-		glyphidx = XftCharIndex(xw.dpy, font->match, rune);
++		if (mode & ATTR_BOXDRAW) {
++			/* minor shoehorning: boxdraw uses only this ushort */
++			glyphidx = boxdrawindex(&glyphs[i]);
++		} else {
++			/* Lookup character index with default font. */
++			glyphidx = XftCharIndex(xw.dpy, font->match, rune);
++		}
+ 		if (glyphidx) {
+ 			specs[numspecs].font = font->match;
+ 			specs[numspecs].glyph = glyphidx;
+@@ -1472,8 +1520,12 @@ xdrawglyphfontspecs(const XftGlyphFontSpec *specs, Glyph base, int len, int x, i
+ 	r.width = width;
+ 	XftDrawSetClipRectangles(xw.draw, winx, winy, &r, 1);
+ 
+-	/* Render the glyphs. */
+-	XftDrawGlyphFontSpec(xw.draw, fg, specs, len);
++	if (base.mode & ATTR_BOXDRAW) {
++		drawboxes(winx, winy, width / len, win.ch, fg, bg, specs, len);
++	} else {
++		/* Render the glyphs. */
++		XftDrawGlyphFontSpec(xw.draw, fg, specs, len);
++	}
+ 
+ 	/* Render underline and strikethrough. */
+ 	if (base.mode & ATTR_UNDERLINE) {
+@@ -1516,7 +1568,7 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
+ 	/*
+ 	 * Select the right color for the right mode.
+ 	 */
+-	g.mode &= ATTR_BOLD|ATTR_ITALIC|ATTR_UNDERLINE|ATTR_STRUCK|ATTR_WIDE;
++	g.mode &= ATTR_BOLD|ATTR_ITALIC|ATTR_UNDERLINE|ATTR_STRUCK|ATTR_WIDE|ATTR_BOXDRAW;
+ 
+ 	if (IS_SET(MODE_REVERSE)) {
+ 		g.mode |= ATTR_REVERSE;
+@@ -1542,29 +1594,44 @@ xdrawcursor(int cx, int cy, Glyph g, int ox, int oy, Glyph og)
+ 	/* draw the new one */
+ 	if (IS_SET(MODE_FOCUSED)) {
+ 		switch (win.cursor) {
+-		case 7: /* st extension */
+-			g.u = 0x2603; /* snowman (U+2603) */
++		default:
++		case 0: /* blinking block */
++		case 1: /* blinking block (default) */
++			if (IS_SET(MODE_BLINK))
++				break;
+ 			/* FALLTHROUGH */
+-		case 0: /* Blinking Block */
+-		case 1: /* Blinking Block (Default) */
+-		case 2: /* Steady Block */
++		case 2: /* steady block */
+ 			xdrawglyph(g, cx, cy);
+ 			break;
+-		case 3: /* Blinking Underline */
+-		case 4: /* Steady Underline */
++		case 3: /* blinking underline */
++			if (IS_SET(MODE_BLINK))
++				break;
++			/* FALLTHROUGH */
++		case 4: /* steady underline */
+ 			XftDrawRect(xw.draw, &drawcol,
+ 					borderpx + cx * win.cw,
+ 					borderpx + (cy + 1) * win.ch - \
+ 						cursorthickness,
+ 					win.cw, cursorthickness);
+ 			break;
+-		case 5: /* Blinking bar */
+-		case 6: /* Steady bar */
++		case 5: /* blinking bar */
++			if (IS_SET(MODE_BLINK))
++				break;
++			/* FALLTHROUGH */
++		case 6: /* steady bar */
+ 			XftDrawRect(xw.draw, &drawcol,
+ 					borderpx + cx * win.cw,
+ 					borderpx + cy * win.ch,
+ 					cursorthickness, win.ch);
+ 			break;
++		case 7: /* blinking st cursor */
++			if (IS_SET(MODE_BLINK))
++				break;
++			/* FALLTHROUGH */
++		case 8: /* steady st cursor */
++			g.u = stcursor;
++			xdrawglyph(g, cx, cy);
++			break;
+ 		}
+ 	} else {
+ 		XftDrawRect(xw.draw, &drawcol,
+@@ -1721,9 +1788,12 @@ xsetmode(int set, unsigned int flags)
+ int
+ xsetcursor(int cursor)
+ {
+-	if (!BETWEEN(cursor, 0, 7)) /* 7: st extension */
++	if (!BETWEEN(cursor, 0, 8)) /* 7-8: st extensions */
+ 		return 1;
+ 	win.cursor = cursor;
++	cursorblinks = win.cursor == 0 || win.cursor == 1 ||
++	               win.cursor == 3 || win.cursor == 5 ||
++	               win.cursor == 7;
+ 	return 0;
+ }
+ 
+@@ -1831,6 +1901,12 @@ kpress(XEvent *ev)
+ 		len = XmbLookupString(xw.ime.xic, e, buf, sizeof buf, &ksym, &status);
+ 	else
+ 		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
++	if ( IS_SET(MODE_KBDSELECT) ) {
++		if ( match(XK_NO_MOD, e->state) ||
++		     (XK_Shift_L | XK_Shift_R) & e->state )
++			win.mode ^= trt_kbdselect(ksym, buf, len);
++		return;
++	}
+ 	/* 1. shortcuts */
+ 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
+ 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
+@@ -1967,6 +2043,10 @@ run(void)
+ 		if (FD_ISSET(ttyfd, &rfd) || xev) {
+ 			if (!drawing) {
+ 				trigger = now;
++				if (IS_SET(MODE_BLINK)) {
++					win.mode ^= MODE_BLINK;
++				}
++				lastblink = now;
+ 				drawing = 1;
+ 			}
+ 			timeout = (maxlatency - TIMEDIFF(now, trigger)) \
+@@ -1977,7 +2057,7 @@ run(void)
+ 
+ 		/* idle detected or maxlatency exhausted -> draw */
+ 		timeout = -1;
+-		if (blinktimeout && tattrset(ATTR_BLINK)) {
++		if (blinktimeout && (cursorblinks || tattrset(ATTR_BLINK))) {
+ 			timeout = blinktimeout - TIMEDIFF(now, lastblink);
+ 			if (timeout <= 0) {
+ 				if (-timeout > blinktimeout) /* start visible */
+@@ -1995,6 +2075,59 @@ run(void)
+ 	}
+ }
+ 
++int
++resource_load(XrmDatabase db, char *name, enum resource_type rtype, void *dst)
++{
++	char **sdst = dst;
++	int *idst = dst;
++	float *fdst = dst;
++
++	char fullname[256];
++	char fullclass[256];
++	char *type;
++	XrmValue ret;
++
++	snprintf(fullname, sizeof(fullname), "%s.%s",
++			opt_name ? opt_name : "st", name);
++	snprintf(fullclass, sizeof(fullclass), "%s.%s",
++			opt_class ? opt_class : "St", name);
++	fullname[sizeof(fullname) - 1] = fullclass[sizeof(fullclass) - 1] = '\0';
++
++	XrmGetResource(db, fullname, fullclass, &type, &ret);
++	if (ret.addr == NULL || strncmp("String", type, 64))
++		return 1;
++
++	switch (rtype) {
++	case STRING:
++		*sdst = ret.addr;
++		break;
++	case INTEGER:
++		*idst = strtoul(ret.addr, NULL, 10);
++		break;
++	case FLOAT:
++		*fdst = strtof(ret.addr, NULL);
++		break;
++	}
++	return 0;
++}
++
++void
++config_init(void)
++{
++	char *resm;
++	XrmDatabase db;
++	ResourcePref *p;
++
++	XrmInitialize();
++	resm = XResourceManagerString(xw.dpy);
++	if (!resm)
++		return;
++
++	db = XrmGetStringDatabase(resm);
++	for (p = resources; p < resources + LEN(resources); p++)
++		resource_load(db, p->name, p->type, p->dst);
++}
++
+ void
+ usage(void)
+ {
+@@ -2008,17 +2141,28 @@ usage(void)
+ 	    " [stty_args ...]\n", argv0, argv0);
+ }
+ 
++void toggle_winmode(int flag) {
++	win.mode ^= flag;
++}
++
++void keyboard_select(const Arg *dummy) {
++	win.mode ^= trt_kbdselect(-1, NULL, 0);
++}
++
+ int
+ main(int argc, char *argv[])
+ {
+ 	xw.l = xw.t = 0;
+ 	xw.isfixed = False;
+-	xsetcursor(cursorshape);
++	xsetcursor(cursorstyle);
+ 
+ 	ARGBEGIN {
+ 	case 'a':
+ 		allowaltscreen = 0;
+ 		break;
++	case 'A':
++		opt_alpha = EARGF(usage());
++		break;
+ 	case 'c':
+ 		opt_class = EARGF(usage());
+ 		break;
+@@ -2068,6 +2212,11 @@ run:
+ 
+ 	setlocale(LC_CTYPE, "");
+ 	XSetLocaleModifiers("");
++
++	if(!(xw.dpy = XOpenDisplay(NULL)))
++		die("Can't open display\n");
++
++	config_init();
+ 	cols = MAX(cols, 1);
+ 	rows = MAX(rows, 1);
+ 	tnew(cols, rows);
