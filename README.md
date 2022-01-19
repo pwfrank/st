@@ -3,9 +3,19 @@ A simple, sensible build of the suckless.org Simple Terminal project.
 
 A PKGBUILD is included for anyone in an Arch-based environment who wants to manage their installation via pacman. Anyone else can build directly from the src directory using make/make clean install
 
+## Patches applied
+st-scrollback
+st-xresources
+st-keyboard_select
+st-alpha
+st-alpha-swap
+st-blinking_cursor
+st-boxdraw
+st-clipboard
+
 ## General controls
-Resize font: `Control + up/K`, `Control-down/J`  
-Reset font: `Control-home`  
+Resize font: `control + up`, `control-down`,`alt-shift-k`,`alt-shift-j`
+Reset font: `control-home`  
 Copy: `alt-c`  
 Paste: `alt-v`  
 
@@ -30,13 +40,13 @@ Quit keyboard_select, keeping the highlight of the selection: `Return`
 Quit keyboard_select: `Escape`  
 
 ### st-scrollback
-Allows scrolling upwards to view previous output. Diff with st.h amended with correct context to apply patch
+Allows scrolling upwards to view previous output. 
 
 Scroll one line: `alt-up/k`, `alt-down/j`  
 Scroll one page: `shift-PageUp`, `shift-PageDown`  
 
 ### st-scrollback-mouse
-Allows scrolling upwards using shift + mousewheel
+Allows scrolling using shift + mousewheel
 
 ### st-xresources
 Allows colors and terminal attributes to be set dynamically via an .Xresources or .Xdefaults file
@@ -55,7 +65,7 @@ Copy output of a previous command: `alt-o`
 
 ## config.h additions
 * keyboard_select mode entry keybinding (removed diff with config.def.h)
-* st-scrollback keybindings (removed diff with config.def.h)
+* st-scrollback keybindings 
 * ResourcePref array
 * Added mkeys array and set mshortcuts array to XK_NO_MOD
 * A more sensible default colorscheme

@@ -7,7 +7,7 @@ fi
 
 rm -rf pkg src *.zst
 makepkg -si --noconfirm || exit 1
-cd src/st-0.8.4/ || exit 1
+cd src/st-0.8.5/ || exit 1
 rm -rf *.o* LEGACY FAQ TODO config.def.h st config.h
 ln -s ../../config.h .
 cd ../
